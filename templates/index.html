@@ -105,7 +105,13 @@
 
                         <!-- Format Selection -->
                         <div class="space-y-3 mb-6 border-b pb-4">
-                             <h3 class="text-lg font-medium text-gray-600">Select Formats to Generate</h3>
+                             <div class="flex justify-between items-center mb-2">
+                                 <h3 class="text-lg font-medium text-gray-600">Select Formats to Generate</h3>
+                                 <div class="flex space-x-2">
+                                     <button type="button" @click="selectAllFormats()" class="text-xs text-blue-600 hover:text-blue-800">Select All</button>
+                                     <button type="button" @click="clearAllFormats()" class="text-xs text-gray-500 hover:text-gray-700">Clear All</button>
+                                 </div>
+                             </div>
                              <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                                 <template x-for="(format, key) in config.formats" :key="key">
                                     <label class="flex items-center space-x-2" :title="format.description">
@@ -435,6 +441,14 @@
                     this.variations_mode = false;
                 },
 
+                selectAllFormats() {
+                    this.selected_formats = Object.keys(this.config.formats || {});
+                },
+
+                clearAllFormats() {
+                    this.selected_formats = [];
+                },
+
                 uploadImage() {
                     if (!this.file || this.selected_formats.length === 0 || this.output_formats.length === 0) return;
 
@@ -498,3 +512,4 @@
     </script>
 </body>
 </html>
+``` 
