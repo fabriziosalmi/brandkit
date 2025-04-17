@@ -1,0 +1,4 @@
+flask>=2.0.0
+pillow>=9.0.0
+werkzeug>=2.0.0
+zipfile36>=0.1.3

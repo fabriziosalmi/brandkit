@@ -1,0 +1,155 @@
+{
+    "formats": {
+        "website": {
+            "width": 1200,
+            "height": 630,
+            "description": "Standard website banner"
+        },
+        "webapp": {
+            "width": 512,
+            "height": 512,
+            "description": "Web app icon"
+        },
+        "mobile": {
+            "width": 1080,
+            "height": 1920,
+            "description": "Mobile screen"
+        },
+        "social": {
+            "width": 1080,
+            "height": 1080,
+            "description": "Social media square"
+        },
+        "twitter": {
+            "width": 1500,
+            "height": 500,
+            "description": "Twitter header"
+        },
+        "instagram": {
+            "width": 1080,
+            "height": 1350,
+            "description": "Instagram post"
+        },
+        "linkedin": {
+            "width": 1200,
+            "height": 627,
+            "description": "LinkedIn post"
+        },
+        "facebook": {
+            "width": 1200,
+            "height": 630,
+            "description": "Facebook post"
+        },
+        "hero_mobile": {
+            "width": 360,
+            "height": 200,
+            "description": "Hero image (mobile)"
+        },
+        "hero_desktop": {
+            "width": 1280,
+            "height": 720,
+            "description": "Hero image (desktop)"
+        },
+        "square_logo_small": {
+            "width": 60,
+            "height": 60,
+            "description": "Square logo (small)"
+        },
+        "square_logo_large": {
+            "width": 100,
+            "height": 100,
+            "description": "Square logo (large)"
+        },
+        "thumbnail_small": {
+            "width": 90,
+            "height": 90,
+            "description": "Thumbnail image (small)"
+        },
+        "thumbnail_large": {
+            "width": 300,
+            "height": 300,
+            "description": "Thumbnail image (large)"
+        },
+        "background_mobile": {
+            "width": 360,
+            "height": 640,
+            "description": "Background image (mobile)"
+        },
+        "background_desktop": {
+            "width": 2560,
+            "height": 1400,
+            "description": "Background image (desktop)"
+        },
+        "social_icon_small": {
+            "width": 32,
+            "height": 32,
+            "description": "Social media icon (small)"
+        },
+        "social_icon_large": {
+            "width": 48,
+            "height": 48,
+            "description": "Social media icon (large)"
+        },
+        "favicon": {
+            "width": 16,
+            "height": 16,
+            "description": "Favicon"
+        },
+        "rectangle_logo_small": {
+            "width": 160,
+            "height": 40,
+            "description": "Rectangle logo (small)"
+        },
+        "rectangle_logo_large": {
+            "width": 400,
+            "height": 100,
+            "description": "Rectangle logo (large)"
+        },
+        "website_banner_mobile": {
+            "width": 360,
+            "height": 120,
+            "description": "Website banner (mobile)"
+        },
+        "website_banner_desktop": {
+            "width": 1200,
+            "height": 400,
+            "description": "Website banner (desktop)"
+        },
+        "lightbox_mobile": {
+            "width": 360,
+            "height": 640,
+            "description": "Lightbox image (mobile)"
+        },
+        "lightbox_desktop": {
+            "width": 1600,
+            "height": 500,
+            "description": "Lightbox image (desktop)"
+        },
+        "blog_post_mobile": {
+            "width": 360,
+            "height": 240,
+            "description": "Blog post image (mobile)"
+        },
+        "blog_post_desktop": {
+            "width": 1200,
+            "height": 800,
+            "description": "Blog post image (desktop)"
+        }
+    },
+    "format_categories": {
+        "Web Application": ["webapp", "favicon", "square_logo_small", "square_logo_large", "rectangle_logo_small", "rectangle_logo_large"],
+        "Website": ["website", "hero_mobile", "hero_desktop", "website_banner_mobile", "website_banner_desktop", "background_mobile", "background_desktop", "lightbox_mobile", "lightbox_desktop", "blog_post_mobile", "blog_post_desktop"],
+        "Social Media": ["social", "twitter", "instagram", "linkedin", "facebook", "social_icon_small", "social_icon_large"],
+        "Mobile": ["mobile", "thumbnail_small", "thumbnail_large"]
+    },
+    "output_formats": ["png", "jpg", "webp", "ico"],
+    "preprocessing_options": {
+        "grayscale": false,
+        "enhance_contrast": false,
+        "apply_blur": false,
+        "blur_radius": 2,
+        "add_watermark": false,
+        "watermark_text": "© BrandKit",
+        "watermark_opacity": 0.3
+    }
+}
