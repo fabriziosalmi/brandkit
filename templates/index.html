@@ -4,452 +4,307 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Brand Kit Generator</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Alpine.js for interactivity -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
-        .drop-zone {
-            border: 2px dashed #cbd5e0;
-            transition: all 0.3s ease;
-        }
-        .drop-zone.active {
-            border-color: #4299e1;
-            background-color: #ebf8ff;
-        }
+        .drop-zone { border: 2px dashed #cbd5e0; transition: all 0.3s ease; }
+        .drop-zone.active { border-color: #4299e1; background-color: #ebf8ff; }
         [x-cloak] { display: none !important; }
+        /* Style range inputs */
+        input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; background: #d1d5db; border-radius: 5px; outline: none; opacity: 0.7; transition: opacity .2s; }
+        input[type=range]:hover { opacity: 1; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: #3b82f6; border-radius: 50%; cursor: pointer; }
+        input[type=range]::-moz-range-thumb { width: 20px; height: 20px; background: #3b82f6; border-radius: 50%; cursor: pointer; border: none; }
+        /* Simple toggle switch */
+        .toggle-checkbox:checked { right: 0; border-color: #60a5fa; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #60a5fa; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen" x-data="appData()">
-    <div class="container mx-auto px-4 py-8">
+<body class="bg-gray-100 min-h-screen font-sans">
+    <div class="container mx-auto px-4 py-8" x-data="appData()" x-cloak>
         <!-- Header -->
-        <header class="mb-12 text-center">
+        <header class="mb-10 text-center">
             <h1 class="text-4xl font-bold text-gray-800 mb-2">Brand Kit Generator</h1>
-            <p class="text-lg text-gray-600">Upload your image and get optimized formats for all platforms</p>
+            <p class="text-lg text-gray-600">Upload, customize, and generate image assets</p>
         </header>
 
         <!-- Main Content -->
         <main class="max-w-6xl mx-auto">
-            <!-- Upload Section -->
-            <section 
-                class="mb-10 bg-white rounded-xl shadow-md p-6"
+            <!-- Upload & Options Section -->
+            <section
+                class="mb-10 bg-white rounded-xl shadow-lg p-6 md:p-8"
                 x-show="!isProcessing && !isComplete">
-                <h2 class="text-2xl font-semibold text-gray-700 mb-4">Upload Your Image</h2>
-                
-                <div 
-                    class="drop-zone rounded-lg p-8 text-center cursor-pointer"
-                    :class="{'active': isDragging}"
-                    @dragover.prevent="isDragging = true"
-                    @dragleave.prevent="isDragging = false"
-                    @drop.prevent="handleDrop($event)"
-                    @click="$refs.fileInput.click()">
-                    
-                    <div x-show="!preview">
-                        <svg class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        <p class="mt-4 text-gray-600">Drag and drop your image here, or click to browse</p>
-                        <p class="mt-2 text-sm text-gray-500">Supports: JPG, PNG, GIF (Max: 16MB)</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Left: Upload Area -->
+                    <div>
+                        <h2 class="text-2xl font-semibold text-gray-700 mb-4">1. Upload Image</h2>
+                        <div
+                            class="drop-zone rounded-lg p-8 text-center cursor-pointer h-64 flex flex-col justify-center items-center"
+                            :class="{'active': isDragging}"
+                            @dragover.prevent="isDragging = true"
+                            @dragleave.prevent="isDragging = false"
+                            @drop.prevent="handleDrop($event)"
+                            @click="$refs.fileInput.click()">
+
+                            <div x-show="!preview" class="text-gray-500">
+                                <svg class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                <p class="mt-3 font-semibold">Drag & drop or click to upload</p>
+                                <p class="mt-1 text-sm">PNG, JPG, GIF, WEBP (Max 16MB)</p>
+                            </div>
+
+                            <div x-show="preview" class="relative max-h-full">
+                                <img :src="preview" class="max-h-48 mx-auto rounded-md shadow" />
+                                <button
+                                    @click.stop="resetForm()"
+                                    class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
+                                    aria-label="Remove image">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                                </button>
+                            </div>
+
+                            <input type="file" x-ref="fileInput" class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp" @change="handleFileInput($event)">
+                        </div>
+                        <div x-show="error" class="mt-3 text-sm text-red-600" x-text="error"></div>
                     </div>
-                    
-                    <div x-show="preview" class="text-center">
-                        <img :src="preview" class="max-h-64 mx-auto rounded-lg shadow-sm" />
-                        <button 
-                            @click.stop="resetForm()" 
-                            class="mt-4 text-sm text-red-500 hover:text-red-700">
-                            Remove image
-                        </button>
-                    </div>
-                    
-                    <input 
-                        type="file" 
-                        x-ref="fileInput" 
-                        class="hidden" 
-                        accept=".jpg,.jpeg,.png,.gif"
-                        @change="handleFileInput($event)">
-                </div>
-                
-                <!-- Options Section -->
-                <div class="mt-8 border-t pt-6" x-show="preview">
-                    <h3 class="text-xl font-semibold text-gray-700 mb-4">Options</h3>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Output Formats Section -->
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h4 class="font-medium text-gray-700 mb-3">Output Formats</h4>
-                            <div class="space-y-2">
-                                <template x-for="format in outputFormats" :key="format">
-                                    <div class="flex items-center">
-                                        <input 
-                                            type="checkbox" 
-                                            :id="'format-' + format" 
-                                            :value="format"
-                                            x-model="selectedOutputFormats"
-                                            class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
-                                        <label :for="'format-' + format" class="ml-2 text-gray-700 capitalize" x-text="format"></label>
+
+                    <!-- Right: Options -->
+                    <div>
+                        <h2 class="text-2xl font-semibold text-gray-700 mb-4">2. Configure Options</h2>
+
+                        <!-- Preprocessing Options -->
+                        <div class="space-y-4 mb-6 border-b pb-4">
+                            <h3 class="text-lg font-medium text-gray-600">Preprocessing</h3>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.grayscale" class="rounded text-blue-500 focus:ring-blue-400"><span>Grayscale</span></label>
+                                <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.bw" class="rounded text-blue-500 focus:ring-blue-400"><span>B&W (High Contrast)</span></label>
+                                <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.invert" class="rounded text-blue-500 focus:ring-blue-400"><span>Invert Colors</span></label>
+                                <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.enhance_contrast" class="rounded text-blue-500 focus:ring-blue-400"><span>Enhance Contrast</span></label>
+                                <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.apply_blur" class="rounded text-blue-500 focus:ring-blue-400"><span>Apply Blur</span></label>
+                                <div x-show="options.apply_blur" class="col-span-2">
+                                    <label class="block text-xs text-gray-500 mb-1" :for="'blur_radius'">Blur Radius: <span x-text="options.blur_radius"></span></label>
+                                    <input type="range" id="blur_radius" x-model="options.blur_radius" min="0.1" max="10" step="0.1">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-xs text-gray-500 mb-1" :for="'hue_shift'">Hue Shift (°): <span x-text="options.hue_shift"></span></label>
+                                    <input type="range" id="hue_shift" x-model="options.hue_shift" min="-180" max="180" step="10">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-xs text-gray-500 mb-1" :for="'temperature'">Temperature: <span x-text="options.temperature > 0 ? '+' + options.temperature : options.temperature"></span></label>
+                                    <input type="range" id="temperature" x-model="options.temperature" min="-100" max="100" step="5">
+                                </div>
+                                <label class="flex items-center space-x-2 col-span-2"><input type="checkbox" x-model="options.add_watermark" class="rounded text-blue-500 focus:ring-blue-400"><span>Add Watermark</span></label>
+                                <div x-show="options.add_watermark" class="col-span-2 space-y-2">
+                                    <input type="text" x-model="options.watermark_text" placeholder="Watermark Text" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-1" :for="'watermark_opacity'">Opacity: <span x-text="options.watermark_opacity"></span></label>
+                                        <input type="range" id="watermark_opacity" x-model="options.watermark_opacity" min="0.1" max="1.0" step="0.05">
                                     </div>
-                                </template>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Image Sizes Categories Tabs -->
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <div class="mb-4">
-                                <h4 class="font-medium text-gray-700 mb-3">Image Formats</h4>
-                                <div class="border-b border-gray-200">
-                                    <nav class="flex flex-wrap -mb-px text-sm">
-                                        <template x-for="(formats, category) in formatCategories" :key="category">
-                                            <button 
-                                                @click="activeCategory = category"
-                                                :class="{'border-b-2 border-blue-500 text-blue-600': activeCategory === category, 'text-gray-500 hover:text-gray-700': activeCategory !== category}"
-                                                class="py-2 px-3 font-medium" 
-                                                x-text="category">
-                                            </button>
-                                        </template>
-                                        <button 
-                                            @click="activeCategory = 'All'"
-                                            :class="{'border-b-2 border-blue-500 text-blue-600': activeCategory === 'All', 'text-gray-500 hover:text-gray-700': activeCategory !== 'All'}"
-                                            class="py-2 px-3 font-medium">
-                                            All
-                                        </button>
-                                    </nav>
-                                </div>
-                            </div>
-                            
-                            <div class="space-y-1 max-h-40 overflow-y-auto pr-2">
-                                <template x-for="(config, format) in getFilteredFormats()" :key="format">
-                                    <div class="flex items-center">
-                                        <input 
-                                            type="checkbox" 
-                                            :id="'size-' + format" 
-                                            :value="format"
-                                            x-model="selectedImageFormats"
-                                            class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
-                                        <label :for="'size-' + format" class="ml-2 text-gray-700 text-sm">
-                                            <span class="capitalize" x-text="format.replace(/_/g, ' ')"></span>
-                                            <span class="text-xs text-gray-500"> 
-                                                (<span x-text="config.width"></span>×<span x-text="config.height"></span>) - 
-                                                <span x-text="config.description"></span>
-                                            </span>
-                                        </label>
-                                    </div>
+                        <!-- Format Selection -->
+                        <div class="space-y-3 mb-6 border-b pb-4">
+                             <h3 class="text-lg font-medium text-gray-600">Select Formats to Generate</h3>
+                             <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                                <template x-for="(format, key) in config.formats" :key="key">
+                                    <label class="flex items-center space-x-2" :title="format.description">
+                                        <input type="checkbox" :value="key" x-model="selected_formats" class="rounded text-blue-500 focus:ring-blue-400">
+                                        <span x-text="`${key} (${format.width}x${format.height})`"></span>
+                                    </label>
                                 </template>
-                            </div>
-                            <div class="mt-2">
-                                <button 
-                                    @click="selectAllFormats(true)" 
-                                    class="text-xs text-blue-500 hover:text-blue-700 mr-2">
-                                    Select All
-                                </button>
-                                <button 
-                                    @click="selectAllFormats(false)" 
-                                    class="text-xs text-blue-500 hover:text-blue-700">
-                                    Clear All
-                                </button>
-                            </div>
+                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- Preprocessing Section -->
-                    <div class="mt-6 bg-gray-50 p-4 rounded-lg">
-                        <div class="flex items-center justify-between mb-3">
-                            <h4 class="font-medium text-gray-700">Image Processing</h4>
-                            <button 
-                                @click="showAdvancedOptions = !showAdvancedOptions" 
-                                class="text-xs text-blue-500 hover:text-blue-700 flex items-center">
-                                <span x-text="showAdvancedOptions ? 'Hide Advanced' : 'Show Advanced'"></span>
-                                <svg :class="{'rotate-180': showAdvancedOptions}" class="w-4 h-4 ml-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                </svg>
-                            </button>
+
+                        <!-- Output File Types -->
+                        <div class="space-y-3 mb-6 border-b pb-4">
+                             <h3 class="text-lg font-medium text-gray-600">Output File Types</h3>
+                             <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                                <template x-for="format in config.output_formats" :key="format">
+                                     <label class="flex items-center space-x-2">
+                                         <input type="checkbox" :value="format" x-model="output_formats" :disabled="format === 'ico' && !selected_formats.includes('favicon')" class="rounded text-blue-500 focus:ring-blue-400 disabled:opacity-50">
+                                         <span :class="{'text-gray-400': format === 'ico' && !selected_formats.includes('favicon')}" x-text="format.toUpperCase()"></span>
+                                     </label>
+                                </template>
+                             </div>
+                             <p x-show="!selected_formats.includes('favicon') && output_formats.includes('ico')" class="text-xs text-orange-600">ICO format requires 'favicon' to be selected.</p>
                         </div>
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Basic Options -->
-                            <div>
-                                <div class="flex items-center mb-3">
-                                    <input 
-                                        type="checkbox" 
-                                        id="grayscale" 
-                                        x-model="preprocessingOptions.grayscale"
-                                        class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
-                                    <label for="grayscale" class="ml-2 text-gray-700">Convert to Grayscale</label>
+
+                        <!-- Variations Mode -->
+                        <div class="mb-6">
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <span class="text-lg font-medium text-gray-600">Generate Color Variations?</span>
+                                <div class="relative">
+                                    <input type="checkbox" x-model="variations_mode" class="sr-only toggle-checkbox">
+                                    <div class="block bg-gray-300 w-10 h-6 rounded-full"></div>
+                                    <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform"
+                                         :class="{ 'translate-x-full bg-blue-500': variations_mode }"></div>
                                 </div>
-                                
-                                <div class="flex items-center mb-3">
-                                    <input 
-                                        type="checkbox" 
-                                        id="bw" 
-                                        x-model="preprocessingOptions.bw"
-                                        class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
-                                    <label for="bw" class="ml-2 text-gray-700">High-Contrast B&amp;W</label>
-                                </div>
-                                
-                                <div class="flex items-center mb-3">
-                                    <input 
-                                        type="checkbox" 
-                                        id="invert" 
-                                        x-model="preprocessingOptions.invert"
-                                        class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
-                                    <label for="invert" class="ml-2 text-gray-700">Invert Colors</label>
-                                </div>
-                            </div>
-                            
-                            <!-- Advanced Options (toggle) -->
-                            <div x-show="showAdvancedOptions">
-                                <div class="mb-3">
-                                    <label for="hue-shift" class="block text-sm text-gray-600 mb-1">Hue Shift</label>
-                                    <div class="flex items-center">
-                                        <input 
-                                            type="range" 
-                                            id="hue-shift" 
-                                            x-model.number="preprocessingOptions.hue_shift"
-                                            min="-180" 
-                                            max="180" 
-                                            step="1"
-                                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                                        <span class="ml-2 text-sm text-gray-600" x-text="preprocessingOptions.hue_shift + '°'"></span>
-                                    </div>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="temperature" class="block text-sm text-gray-600 mb-1">Temperature</label>
-                                    <div class="flex items-center">
-                                        <input 
-                                            type="range" 
-                                            id="temperature" 
-                                            x-model.number="preprocessingOptions.temperature"
-                                            min="-100" 
-                                            max="100" 
-                                            step="1"
-                                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                                        <span class="ml-2 text-sm text-gray-600" x-text="preprocessingOptions.temperature"></span>
-                                    </div>
-                                </div>
-                                
-                                <div class="flex items-center mb-3">
-                                    <input 
-                                        type="checkbox" 
-                                        id="apply-blur" 
-                                        x-model="preprocessingOptions.apply_blur"
-                                        class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
-                                    <label for="apply-blur" class="ml-2 text-gray-700">Apply Blur</label>
-                                </div>
-                                
-                                <div class="mb-3" x-show="preprocessingOptions.apply_blur">
-                                    <label for="blur-radius" class="block text-sm text-gray-600 mb-1">Blur Radius</label>
-                                    <div class="flex items-center">
-                                        <input 
-                                            type="range" 
-                                            id="blur-radius" 
-                                            x-model.number="preprocessingOptions.blur_radius"
-                                            min="0.5" 
-                                            max="10" 
-                                            step="0.5"
-                                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                                        <span class="ml-2 text-sm text-gray-600" x-text="preprocessingOptions.blur_radius"></span>
-                                    </div>
-                                </div>
-                                
-                                <div class="flex items-center mb-3">
-                                    <input 
-                                        type="checkbox" 
-                                        id="add-watermark" 
-                                        x-model="preprocessingOptions.add_watermark"
-                                        class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
-                                    <label for="add-watermark" class="ml-2 text-gray-700">Add Watermark</label>
-                                </div>
-                                
-                                <div x-show="preprocessingOptions.add_watermark">
-                                    <div class="mb-3">
-                                        <label for="watermark-text" class="block text-sm text-gray-600 mb-1">Watermark Text</label>
-                                        <input 
-                                            type="text" 
-                                            id="watermark-text" 
-                                            x-model="preprocessingOptions.watermark_text"
-                                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label for="watermark-opacity" class="block text-sm text-gray-600 mb-1">Opacity</label>
-                                        <div class="flex items-center">
-                                            <input 
-                                                type="range" 
-                                                id="watermark-opacity" 
-                                                x-model.number="preprocessingOptions.watermark_opacity"
-                                                min="0.1" 
-                                                max="1" 
-                                                step="0.1"
-                                                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                                            <span class="ml-2 text-sm text-gray-600" x-text="Math.round(preprocessingOptions.watermark_opacity * 100) + '%'"></span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            </label>
+                            <p class="text-xs text-gray-500 mt-1">Generates multiple versions (grayscale, inverted, hue shifts, etc.) for each selected format.</p>
                         </div>
-                        
-                        <!-- Variations toggle -->
-                        <div class="mt-4 flex items-center">
-                            <input 
-                                type="checkbox" 
-                                id="variations_mode" 
-                                x-model="variationsMode"
-                                class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
-                            <label for="variations_mode" class="ml-2 text-gray-700 font-medium">Generate creative variations (multiple combos per format)</label>
-                        </div>
+
                     </div>
                 </div>
-                
-                <div class="mt-6 text-center">
-                    <button 
+
+                <!-- Submit Button -->
+                <div class="mt-8 pt-6 border-t text-center">
+                    <button
                         @click="uploadImage()"
-                        :disabled="!file || isProcessing"
-                        :class="{'bg-blue-500 hover:bg-blue-600': file && !isProcessing, 'bg-gray-400 cursor-not-allowed': !file || isProcessing}"
-                        class="px-6 py-3 rounded-lg text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-300 transition">
+                        :disabled="!file || isProcessing || selected_formats.length === 0 || output_formats.length === 0"
+                        :class="{
+                            'bg-blue-600 hover:bg-blue-700': file && !isProcessing && selected_formats.length > 0 && output_formats.length > 0,
+                            'bg-gray-400 cursor-not-allowed': !file || isProcessing || selected_formats.length === 0 || output_formats.length === 0
+                        }"
+                        class="px-8 py-3 rounded-lg text-white font-semibold text-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 transition duration-150 ease-in-out shadow-md">
                         Generate Brand Kit
                     </button>
+                     <p x-show="selected_formats.length === 0" class="text-sm text-red-600 mt-2">Please select at least one format to generate.</p>
+                     <p x-show="output_formats.length === 0" class="text-sm text-red-600 mt-2">Please select at least one output file type.</p>
                 </div>
             </section>
-            
+
             <!-- Processing Section -->
-            <div x-show="isProcessing" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm" style="backdrop-filter: blur(6px);">
-                <div class="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center w-80">
-                    <svg class="animate-spin h-10 w-10 text-blue-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <div class="w-full bg-gray-200 rounded-full h-3 mb-4">
-                        <div class="bg-blue-500 h-3 rounded-full transition-all duration-300" :style="'width: ' + progressPercent + '%'" x-text="progressPercent + '%'" style="text-align:center;color:white;"></div>
-                    </div>
-                    <div class="text-gray-700 text-center text-lg font-medium">Processing your image...</div>
-                    <div class="text-gray-500 text-sm mt-2">This may take a few moments. Please wait.</div>
-                </div>
-            </div>
-            
+            <section
+                class="mb-10 bg-white rounded-xl shadow-lg p-8 text-center"
+                x-show="isProcessing">
+                <svg class="animate-spin h-12 w-12 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-4 text-xl text-gray-700 font-semibold">Generating your assets...</p>
+                <p class="mt-2 text-sm text-gray-500">Applying options and resizing images. This might take a moment.</p>
+            </section>
+
             <!-- Results Section -->
-            <section 
-                class="bg-white rounded-xl shadow-md p-6"
-                x-show="isComplete" x-cloak>
-                
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-4 md:mb-0">Your Brand Kit</h2>
-                    <button 
-                        @click="resetForm()" 
-                        class="text-sm px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-                        Upload Another Image
-                    </button>
-                </div>
-                
-                <!-- Summary Stats Card -->
-                <div class="mb-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
-                    <div class="flex flex-col md:flex-row justify-between items-center">
-                        <div class="mb-4 md:mb-0 text-center md:text-left">
-                            <h3 class="text-xl font-semibold text-gray-800">Brand Kit Summary</h3>
-                            <p class="text-gray-600 mb-2">Generated <span class="font-medium" x-text="Object.keys(getResultFormats()).length"></span> different image formats</p>
-                            <p class="text-gray-600">Created <span class="font-medium" x-text="getTotalOutputCount()"></span> total image files</p>
-                        </div>
-                        <a 
-                            :href="results.zip.url" 
-                            download 
-                            class="px-5 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-lg font-medium flex items-center shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                            </svg>
-                            Download Complete Kit
+            <section
+                class="bg-white rounded-xl shadow-lg p-6 md:p-8"
+                x-show="isComplete">
+
+                <div class="flex flex-col sm:flex-row justify-between items-center mb-6 pb-4 border-b">
+                    <h2 class="text-2xl font-semibold text-gray-700 mb-3 sm:mb-0">Your Brand Kit is Ready!</h2>
+                    <div class="flex space-x-3">
+                         <a x-show="results && results.zip" :href="results.zip.url" :download="results.zip.filename"
+                           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                            <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4m0 0h8m-8 6h4m-4 4h4m0 0l4-4m-4 4l-4-4" /></svg>
+                            Download All (.zip)
                         </a>
+                        <button
+                            @click="resetForm()"
+                            class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m-15.357-2a8.001 8.001 0 0115.357 2m0 0H15" /></svg>
+                            Start Over
+                        </button>
                     </div>
                 </div>
-                
-                <!-- Favicon & Original Image Row -->
-                <div class="flex flex-col md:flex-row gap-6 mb-8">
-                    <template x-if="results.favicon_ico">
-                        <div class="flex-1 bg-gray-50 rounded-lg border border-gray-100 p-4 flex flex-col items-center justify-center">
-                            <div class="flex flex-col items-center justify-center mb-2">
-                                <div class="w-16 h-16 flex items-center justify-center rounded-lg bg-white shadow-sm border p-2 mb-1">
-                                    <img :src="results.favicon_ico.url" class="w-10 h-10 object-contain" />
+
+                <!-- Display Error if processing failed but completed flag is set -->
+                 <div x-show="error && isComplete" class="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
+                    <p class="font-bold">Processing Error:</p>
+                    <p x-text="error"></p>
+                </div>
+
+                <!-- Results Grid -->
+                <div class="space-y-8" x-show="results && !error">
+
+                    <!-- Original Image -->
+                    <div x-show="results.original" class="bg-gray-50 rounded-lg p-4 border">
+                        <h3 class="text-lg font-medium text-gray-800 mb-3">Original Uploaded Image</h3>
+                        <div class="flex justify-center max-h-64 mb-3">
+                             <img :src="results.original.url" class="object-contain rounded-md shadow-sm" />
+                        </div>
+                        <a :href="results.original.url" download class="text-sm text-blue-600 hover:text-blue-800 flex items-center justify-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            Download Original
+                        </a>
+                    </div>
+
+                    <!-- Favicon -->
+                     <div x-show="results.favicon_ico" class="bg-gray-50 rounded-lg p-4 border">
+                        <h3 class="text-lg font-medium text-gray-800 mb-3">Favicon (.ico)</h3>
+                         <div class="flex items-center space-x-4">
+                             <img :src="results.favicon_ico.url" class="w-12 h-12 object-contain border rounded" alt="Favicon Preview"/>
+                             <a :href="results.favicon_ico.url" download="favicon.ico" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                 Download favicon.ico
+                             </a>
+                         </div>
+                    </div>
+
+                    <!-- Variations Display -->
+                    <div x-show="results.variations">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Generated Variations</h3>
+                        <div class="space-y-6">
+                            <template x-for="(variationData, variationLabel) in results.variations" :key="variationLabel">
+                                <div class="bg-gray-50 rounded-lg p-4 border">
+                                    <h4 class="text-lg font-medium text-gray-700 mb-3" x-text="variationLabel.replace(/_/g, ' ')"></h4>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        <template x-for="(formatData, formatName) in variationData" :key="formatName">
+                                            <div class="bg-white p-3 rounded shadow-sm border">
+                                                <p class="text-sm font-semibold text-gray-600 mb-1" x-text="`${formatName} (${formatData.dimensions[0]}x${formatData.dimensions[1]})`"></p>
+                                                <p class="text-xs text-gray-500 mb-2" x-text="formatData.description"></p>
+                                                <div class="aspect-w-16 aspect-h-9 bg-gray-200 rounded overflow-hidden mb-2 flex items-center justify-center">
+                                                     <!-- Display first available output format as preview -->
+                                                     <img :src="Object.values(formatData.outputs)[0].url" class="object-contain max-w-full max-h-full" :alt="`${variationLabel} - ${formatName}`"/>
+                                                </div>
+                                                <div class="flex flex-wrap gap-2 justify-center">
+                                                    <template x-for="(outputData, outputFormat) in formatData.outputs" :key="outputFormat">
+                                                        <a :href="outputData.url" download :download="`${variationLabel}_${formatName}.${outputFormat}`"
+                                                           class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200">
+                                                           .<span x-text="outputFormat"></span>
+                                                        </a>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
                                 </div>
-                                <span class="text-xs text-gray-500 mt-1">16×16px</span>
-                            </div>
-                            <h3 class="text-lg font-semibold text-gray-800 mb-1">Favicon.ico</h3>
-                            <p class="text-sm text-gray-600 mb-2 text-center">Multi-size browser icon (16×16, 32×32, 48×48)</p>
-                            <a 
-                                :href="results.favicon_ico.url" 
-                                download 
-                                class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md flex items-center text-sm font-medium transition">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                                </svg>
-                                Download favicon.ico
-                            </a>
-                        </div>
-                    </template>
-                    <div class="flex-1 bg-gray-50 rounded-lg p-4 border border-gray-100 flex flex-col items-center justify-center">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Original Image</h3>
-                        <div class="w-full max-w-xs mx-auto mb-3">
-                            <div class="aspect-w-16 aspect-h-9 overflow-hidden rounded-lg shadow-md">
-                                <img :src="results.original.url" class="object-contain w-full h-full bg-white" />
-                            </div>
-                        </div>
-                        <a :href="results.original.url" download class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-md flex items-center text-sm font-medium transition">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                            </svg>
-                            Download Original Image
-                        </a>
-                    </div>
-                </div>
-                
-                <!-- Format Category Selector -->
-                <div class="mb-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-3">Generated Assets</h3>
-                    
-                    <div class="bg-white border rounded-lg overflow-hidden">
-                        <div class="flex overflow-x-auto scrollbar-hide">
-                            <template x-for="(formats, category) in formatCategories" :key="category">
-                                <button 
-                                    @click="activeResultCategory = category"
-                                    :class="{
-                                        'bg-blue-50 text-blue-700 border-b-2 border-blue-500': activeResultCategory === category,
-                                        'text-gray-600 hover:bg-gray-50 hover:text-gray-900': activeResultCategory !== category
-                                    }"
-                                    class="px-4 py-3 font-medium whitespace-nowrap transition">
-                                    <span x-text="category"></span>
-                                    <span class="ml-1 text-xs rounded-full px-2 py-0.5" 
-                                          :class="activeResultCategory === category ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'"
-                                          x-text="getCategoryCount(category)"></span>
-                                </button>
                             </template>
-                            <button 
-                                @click="activeResultCategory = 'All'"
-                                :class="{
-                                    'bg-blue-50 text-blue-700 border-b-2 border-blue-500': activeResultCategory === 'All',
-                                    'text-gray-600 hover:bg-gray-50 hover:text-gray-900': activeResultCategory !== 'All'
-                                }"
-                                class="px-4 py-3 font-medium whitespace-nowrap transition">
-                                All Formats
-                                <span class="ml-1 text-xs rounded-full px-2 py-0.5" 
-                                      :class="activeResultCategory === 'All' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'"
-                                      x-text="Object.keys(getResultFormats()).length"></span>
-                            </button>
                         </div>
                     </div>
+
+                    <!-- Standard (Non-Variations) Display -->
+                    <div x-show="!results.variations">
+                         <h3 class="text-xl font-semibold text-gray-800 mb-4">Generated Formats</h3>
+                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                             <template x-for="(formatData, formatName) in results" :key="formatName">
+                                 <div x-show="!['original', 'zip', 'variations', 'favicon_ico'].includes(formatName)" class="bg-gray-50 rounded-lg p-4 border shadow-sm">
+                                     <h4 class="text-lg font-medium text-gray-700 mb-1" x-text="`${formatName} (${formatData.dimensions[0]}x${formatData.dimensions[1]})`"></h4>
+                                     <p class="text-xs text-gray-500 mb-3" x-text="formatData.description"></p>
+                                     <div class="aspect-w-16 aspect-h-9 bg-gray-200 rounded overflow-hidden mb-3 flex items-center justify-center">
+                                         <!-- Display first available output format as preview -->
+                                         <img :src="Object.values(formatData.outputs)[0].url" class="object-contain max-w-full max-h-full" :alt="formatName"/>
+                                     </div>
+                                     <div class="flex flex-wrap gap-2 justify-center">
+                                         <template x-for="(outputData, outputFormat) in formatData.outputs" :key="outputFormat">
+                                             <a :href="outputData.url" download :download="`${formatName}.${outputFormat}`"
+                                                class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200">
+                                                Download .<span x-text="outputFormat"></span>
+                                             </a>
+                                         </template>
+                                     </div>
+                                 </div>
+                             </template>
+                         </div>
+                    </div>
                 </div>
-                
-                <!-- Generated Formats Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <template x-for="(formatData, format) in getFilteredResultFormats()" :key="format">
-                        <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition">
-                            <div class="p-4 bg-gray-50 border-b">
-                                <h4 class="text-md font-semibold text-gray-800 capitalize"></h4>
+            </section>
+        </main>
+
         <!-- Footer -->
         <footer class="mt-12 text-center text-gray-500 text-sm">
-            <p>© 2025 Brand Kit Generator. Created with ❤️ using Flask and Tailwind CSS.</p>
+            <p>© <span x-text="new Date().getFullYear()"></span> Brand Kit Generator. Powered by Flask & Alpine.js.</p>
         </footer>
     </div>
 
     <script>
         function appData() {
+            const initialConfig = {{ config | tojson }}; // Get config from Flask
+            const defaultFormats = Object.keys(initialConfig.formats || {});
+            const defaultOutputFormats = (initialConfig.output_formats || ['png', 'jpg', 'webp', 'ico']).filter(f => f !== 'ico'); // Default exclude ico unless favicon selected
+
             return {
+                config: initialConfig,
                 file: null,
                 preview: null,
                 isDragging: false,
@@ -457,263 +312,182 @@
                 isComplete: false,
                 error: null,
                 results: null,
-                imageFormats: {{ config.formats|tojson }},
-                formatCategories: {{ config.format_categories|tojson }},
-                outputFormats: {{ config.output_formats|tojson }},
-                selectedImageFormats: [],
-                selectedOutputFormats: ['png'],
-                activeCategory: 'All',
-                activeResultCategory: 'All',
-                showAdvancedOptions: false,
-                preprocessingOptions: {
+                // --- Options ---
+                options: {
                     grayscale: false,
+                    bw: false,
+                    invert: false,
+                    hue_shift: 0,
+                    temperature: 0,
                     enhance_contrast: false,
                     apply_blur: false,
-                    blur_radius: 2,
+                    blur_radius: 2.0,
                     add_watermark: false,
                     watermark_text: '© BrandKit',
-                    watermark_opacity: 0.3
+                    watermark_opacity: 0.3,
                 },
-                
+                selected_formats: [...defaultFormats], // Default select all formats
+                output_formats: [...defaultOutputFormats], // Default select common formats
+                variations_mode: false,
+                // --- End Options ---
+
                 init() {
-                    // Initialize with all image formats selected
-                    this.selectedImageFormats = Object.keys(this.imageFormats);
+                    // Add 'ico' to output formats if 'favicon' is initially selected
+                    if (this.selected_formats.includes('favicon')) {
+                        if (!this.output_formats.includes('ico')) {
+                            this.output_formats.push('ico');
+                        }
+                    }
+                    // Watch for changes in selected_formats to manage 'ico' output option
+                    this.$watch('selected_formats', (newFormats) => {
+                        const icoIndex = this.output_formats.indexOf('ico');
+                        if (newFormats.includes('favicon')) {
+                            // If favicon is selected, ensure ico is an option (if available in config)
+                            if (icoIndex === -1 && this.config.output_formats.includes('ico')) {
+                                this.output_formats.push('ico');
+                            }
+                        } else {
+                            // If favicon is deselected, remove ico from selected outputs
+                            if (icoIndex !== -1) {
+                                this.output_formats.splice(icoIndex, 1);
+                            }
+                        }
+                    });
+                     // Watch output formats to ensure ico isn't selected without favicon
+                     this.$watch('output_formats', (newOutputs) => {
+                         if (newOutputs.includes('ico') && !this.selected_formats.includes('favicon')) {
+                             const icoIndex = this.output_formats.indexOf('ico');
+                             if (icoIndex !== -1) {
+                                 // This case should be prevented by disabling the checkbox, but as a fallback:
+                                 this.output_formats.splice(icoIndex, 1);
+                                 console.warn("ICO output format automatically deselected because Favicon format is not chosen.");
+                             }
+                         }
+                     });
                 },
-                
+
                 handleDrop(e) {
                     this.isDragging = false;
+                    this.error = null; // Clear previous error
                     const droppedFiles = e.dataTransfer.files;
                     if (droppedFiles.length > 0) {
                         this.handleFile(droppedFiles[0]);
                     }
                 },
-                
+
                 handleFileInput(e) {
+                     this.error = null; // Clear previous error
                     const files = e.target.files;
                     if (files.length > 0) {
                         this.handleFile(files[0]);
                     }
                 },
-                
+
                 handleFile(file) {
-                    // Validate file type
-                    const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
                     if (!validTypes.includes(file.type)) {
-                        alert('Please upload a valid image file (JPG, PNG, or GIF)');
+                        this.error = 'Invalid file type. Please use JPG, PNG, GIF, or WEBP.';
+                        this.resetFileInput();
                         return;
                     }
-                    
-                    // Validate file size (16MB max)
-                    if (file.size > 16 * 1024 * 1024) {
-                        alert('Please upload an image less than 16MB');
+                    if (file.size > 16 * 1024 * 1024) { // 16MB
+                         this.error = 'File is too large (Max 16MB).';
+                         this.resetFileInput();
                         return;
                     }
-                    
                     this.file = file;
                     this.createPreview(file);
                 },
-                
+
                 createPreview(file) {
                     const reader = new FileReader();
-                    reader.onload = (e) => {
-                        this.preview = e.target.result;
-                    };
+                    reader.onload = (e) => { this.preview = e.target.result; };
+                    reader.onerror = () => { this.error = "Could not read file preview."; };
                     reader.readAsDataURL(file);
                 },
-                
-                resetForm() {
+
+                 resetFileInput() {
                     this.file = null;
                     this.preview = null;
+                    if (this.$refs.fileInput) {
+                        this.$refs.fileInput.value = '';
+                    }
+                 },
+
+                resetForm() {
+                    this.resetFileInput();
                     this.isProcessing = false;
                     this.isComplete = false;
                     this.error = null;
                     this.results = null;
-                    
-                    if (this.$refs.fileInput) {
-                        this.$refs.fileInput.value = '';
-                    }
+                    // Reset options to defaults
+                    this.options = { grayscale: false, bw: false, invert: false, hue_shift: 0, temperature: 0, enhance_contrast: false, apply_blur: false, blur_radius: 2.0, add_watermark: false, watermark_text: '© BrandKit', watermark_opacity: 0.3 };
+                    this.selected_formats = [...defaultFormats];
+                    this.output_formats = [...defaultOutputFormats];
+                     if (this.selected_formats.includes('favicon') && !this.output_formats.includes('ico') && this.config.output_formats.includes('ico')) {
+                         this.output_formats.push('ico');
+                     }
+                    this.variations_mode = false;
                 },
-                
-                getFilteredFormats() {
-                    if (this.activeCategory === 'All') {
-                        return this.imageFormats;
-                    }
-                    
-                    const categoryFormats = this.formatCategories[this.activeCategory] || [];
-                    return Object.fromEntries(
-                        Object.entries(this.imageFormats).filter(([key]) => categoryFormats.includes(key))
-                    );
-                },
-                
-                selectAllFormats(select) {
-                    if (select) {
-                        if (this.activeCategory === 'All') {
-                            this.selectedImageFormats = Object.keys(this.imageFormats);
-                        } else {
-                            // Select all formats in the current category
-                            const categoryFormats = this.formatCategories[this.activeCategory] || [];
-                            // Merge with existing selections from other categories
-                            this.selectedImageFormats = [
-                                ...new Set([
-                                    ...this.selectedImageFormats.filter(f => !Object.keys(this.getFilteredFormats()).includes(f)),
-                                    ...categoryFormats
-                                ])
-                            ];
-                        }
-                    } else {
-                        if (this.activeCategory === 'All') {
-                            this.selectedImageFormats = [];
-                        } else {
-                            // Unselect all formats in the current category
-                            const categoryFormats = this.formatCategories[this.activeCategory] || [];
-                            this.selectedImageFormats = this.selectedImageFormats.filter(
-                                format => !categoryFormats.includes(format)
-                            );
-                        }
-                    }
-                },
-                
+
                 uploadImage() {
-                    if (!this.file) return;
-                    
-                    // Validate that at least one format is selected
-                    if (this.selectedImageFormats.length === 0) {
-                        alert('Please select at least one image format');
-                        return;
-                    }
-                    
-                    // Validate that at least one output format is selected
-                    if (this.selectedOutputFormats.length === 0) {
-                        alert('Please select at least one output format');
-                        return;
-                    }
-                    
+                    if (!this.file || this.selected_formats.length === 0 || this.output_formats.length === 0) return;
+
                     this.isProcessing = true;
-                    
+                    this.isComplete = false; // Ensure results aren't shown during processing
+                    this.error = null; // Clear previous errors
+                    this.results = null; // Clear previous results
+
                     const formData = new FormData();
                     formData.append('file', this.file);
-                    
-                    // Add selected formats
-                    this.selectedImageFormats.forEach(format => {
-                        formData.append('formats', format);
+
+                    // Append options
+                    Object.entries(this.options).forEach(([key, value]) => {
+                        formData.append(key, value);
                     });
-                    
-                    // Add selected output formats
-                    this.selectedOutputFormats.forEach(format => {
-                        formData.append('output_formats', format);
-                    });
-                    
-                    // Add preprocessing options
-                    formData.append('grayscale', this.preprocessingOptions.grayscale);
-                    formData.append('enhance_contrast', this.preprocessingOptions.enhance_contrast);
-                    formData.append('apply_blur', this.preprocessingOptions.apply_blur);
-                    formData.append('blur_radius', this.preprocessingOptions.blur_radius);
-                    formData.append('add_watermark', this.preprocessingOptions.add_watermark);
-                    formData.append('watermark_text', this.preprocessingOptions.watermark_text);
-                    formData.append('watermark_opacity', this.preprocessingOptions.watermark_opacity);
-                    
+
+                    // Append selected formats and output formats
+                    this.selected_formats.forEach(format => formData.append('selected_formats', format));
+                    this.output_formats.forEach(format => formData.append('output_formats', format));
+
+                    // Append variations mode
+                    formData.append('variations_mode', this.variations_mode);
+
                     fetch('/upload', {
                         method: 'POST',
                         body: formData
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            // Try to parse error JSON from backend
+                            return response.json().then(errData => {
+                                throw new Error(errData.error || `HTTP error ${response.status}`);
+                            }).catch(() => {
+                                // Fallback if error JSON parsing fails
+                                throw new Error(`HTTP error ${response.status}`);
+                            });
+                        }
+                        return response.json();
+                    })
                     .then(data => {
-                        this.isProcessing = false;
-                        
                         if (data.success) {
                             this.results = data.results;
                             this.isComplete = true;
                         } else {
-                            this.error = data.error || 'An error occurred during processing';
-                            alert(this.error);
+                            // This case might not be reached if using the !response.ok check above
+                            this.error = data.error || 'An unknown error occurred during processing.';
+                            this.isComplete = true; // Mark as complete even with error to show message
                         }
                     })
                     .catch(error => {
-                        this.isProcessing = false;
-                        this.error = 'Network error, please try again';
-                        alert(this.error);
-                        console.error('Error:', error);
+                        console.error('Upload Error:', error);
+                        this.error = error.message || 'Network error or server issue. Please try again.';
+                        this.isComplete = true; // Mark as complete to show the error message
+                    })
+                    .finally(() => {
+                         this.isProcessing = false;
                     });
-                },
-                
-                getResultFormats() {
-                    if (!this.results) return {};
-                    
-                    // Filter out the original, zip, and favicon_ico keys
-                    return Object.fromEntries(
-                        Object.entries(this.results).filter(([key]) => !['original', 'zip', 'favicon_ico'].includes(key))
-                    );
-                },
-                
-                getFilteredResultFormats() {
-                    const formats = this.getResultFormats();
-                    
-                    if (this.activeResultCategory === 'All') {
-                        return formats;
-                    }
-                    
-                    const categoryFormats = this.formatCategories[this.activeResultCategory] || [];
-                    return Object.fromEntries(
-                        Object.entries(formats).filter(([key]) => categoryFormats.includes(key))
-                    );
-                },
-                
-                getTotalOutputCount() {
-                    let count = 0;
-                    const formats = this.getResultFormats();
-                    
-                    Object.values(formats).forEach(format => {
-                        count += Object.keys(format.outputs).length;
-                    });
-                    
-                    // Add original and favicon if they exist
-                    if (this.results.original) count++;
-                    if (this.results.favicon_ico) count++;
-                    
-                    return count;
-                },
-                
-                getCategoryCount(category) {
-                    if (!this.formatCategories[category]) return 0;
-                    const categoryFormats = this.formatCategories[category];
-                    const formats = this.getResultFormats();
-                    // Only count formats that exist in results
-                    return categoryFormats.filter(key => Object.keys(formats).includes(key)).length;
-                },
-                
-                getAspectRatioClass(dimensions) {
-                    const width = dimensions[0];
-                    const height = dimensions[1];
-                    const ratio = width / height;
-                    
-                    // Square or near-square
-                    if (ratio >= 0.9 && ratio <= 1.1) {
-                        return 'aspect-w-1 aspect-h-1 w-40 h-40';
-                    }
-                    
-                    // Landscape
-                    if (ratio > 1.1) {
-                        if (ratio > 3) {
-                            // Very wide (like rectangle logos)
-                            return 'aspect-w-4 aspect-h-1 w-64 h-16';
-                        } else {
-                            return 'aspect-w-16 aspect-h-9 w-64 h-36';
-                        }
-                    }
-                    
-                    // Portrait
-                    if (ratio < 0.9) {
-                        if (ratio < 0.33) {
-                            // Very tall
-                            return 'aspect-w-9 aspect-h-20 w-32 h-64';
-                        } else {
-                            return 'aspect-w-9 aspect-h-16 w-36 h-64';
-                        }
-                    }
-                    
-                    // Default fallback
-                    return 'aspect-w-16 aspect-h-9 w-64 h-36';
-                },
+                }
             }
         }
     </script>

@@ -12,7 +12,7 @@ import numpy as np
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}  # Added webp
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
 
 # Ensure upload directory exists
@@ -20,8 +20,23 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Load configuration
 def load_config():
-    with open('config.json', 'r') as f:
-        return json.load(f)
+    try:
+        with open('config.json', 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {
+            "formats": {
+                "website": {"width": 1200, "height": 630, "description": "Open Graph, Twitter Cards"},
+                "webapp": {"width": 512, "height": 512, "description": "Web App Manifest Icon"},
+                "mobile": {"width": 1080, "height": 1920, "description": "Mobile Screens"},
+                "social": {"width": 1080, "height": 1080, "description": "Social Media Posts"},
+                "favicon": {"width": 48, "height": 48, "description": "Browser Favicon (generates .ico)"}
+            },
+            "output_formats": ["png", "jpg", "webp", "ico"]
+        }
+    except json.JSONDecodeError:
+        print("Error: config.json is not valid JSON.")
+        return {"formats": {}, "output_formats": []}
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -29,14 +44,11 @@ def allowed_file(filename):
 
 def preprocess_image(image, options):
     """Apply preprocessing options to the image"""
-    # Grayscale
     if options.get('grayscale'):
         image = image.convert('L').convert('RGBA')
-    # High-contrast B&W
     if options.get('bw'):
         image = image.convert('L')
         image = image.point(lambda x: 0 if x < 128 else 255, '1').convert('RGBA')
-    # Invert
     if options.get('invert'):
         if image.mode != 'RGBA':
             image = image.convert('RGBA')
@@ -44,21 +56,16 @@ def preprocess_image(image, options):
         rgb_image = Image.merge('RGB', (r, g, b))
         inverted = ImageOps.invert(rgb_image)
         image = Image.merge('RGBA', (*inverted.split(), a))
-    # Hue shift
     if options.get('hue_shift', 0):
         image = shift_hue(image, options.get('hue_shift', 0))
-    # Temperature
     if options.get('temperature', 0):
         image = adjust_temperature(image, options.get('temperature', 0))
-    # Enhance contrast
     if options.get('enhance_contrast'):
         enhancer = ImageEnhance.Contrast(image)
         image = enhancer.enhance(1.5)
-    # Blur
     if options.get('apply_blur'):
         blur_radius = options.get('blur_radius', 2)
         image = image.filter(ImageFilter.GaussianBlur(radius=blur_radius))
-    # Watermark
     if options.get('add_watermark') and options.get('watermark_text'):
         watermark = Image.new('RGBA', image.size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(watermark)
@@ -77,25 +84,24 @@ def shift_hue(img, deg):
     if img.mode != 'RGBA':
         img = img.convert('RGBA')
     arr = np.array(img)
-    r, g, b, a = arr[...,0], arr[...,1], arr[...,2], arr[...,3]
-    hsv = np.array(Image.fromarray(np.stack([r,g,b], axis=-1)).convert('HSV'))
-    hsv[...,0] = (hsv[...,0].astype(int) + int(deg/360*255)) % 255
+    r, g, b, a = arr[..., 0], arr[..., 1], arr[..., 2], arr[..., 3]
+    hsv = np.array(Image.fromarray(np.stack([r, g, b], axis=-1)).convert('HSV'))
+    hsv[..., 0] = (hsv[..., 0].astype(int) + int(deg / 360 * 255)) % 255
     rgb = Image.fromarray(hsv, 'HSV').convert('RGBA')
     arr2 = np.array(rgb)
-    arr2[...,3] = a
+    arr2[..., 3] = a
     return Image.fromarray(arr2, 'RGBA')
 
 def adjust_temperature(img, temp):
-    # temp: -100 (cool) to +100 (warm)
     if img.mode != 'RGBA':
         img = img.convert('RGBA')
     arr = np.array(img).astype(np.int16)
     if temp > 0:
-        arr[...,0] = np.clip(arr[...,0] + temp, 0, 255) # more red
-        arr[...,2] = np.clip(arr[...,2] - temp//2, 0, 255) # less blue
+        arr[..., 0] = np.clip(arr[..., 0] + temp, 0, 255)
+        arr[..., 2] = np.clip(arr[..., 2] - temp // 2, 0, 255)
     elif temp < 0:
-        arr[...,2] = np.clip(arr[...,2] + abs(temp), 0, 255) # more blue
-        arr[...,0] = np.clip(arr[...,0] + temp//2, 0, 255) # less red
+        arr[..., 2] = np.clip(arr[..., 2] + abs(temp), 0, 255)
+        arr[..., 0] = np.clip(arr[..., 0] + temp // 2, 0, 255)
     arr = np.clip(arr, 0, 255).astype(np.uint8)
     return Image.fromarray(arr, 'RGBA')
 
@@ -105,64 +111,60 @@ def generate_variations():
         {'label': 'Grayscale', 'opts': {'grayscale': True}},
         {'label': 'B&W', 'opts': {'bw': True}},
         {'label': 'Inverted', 'opts': {'invert': True}},
-        {'label': 'Hue +60°', 'opts': {'hue_shift': 60}},
-        {'label': 'Hue -60°', 'opts': {'hue_shift': -60}},
+        {'label': 'Hue_+60', 'opts': {'hue_shift': 60}},
+        {'label': 'Hue_-60', 'opts': {'hue_shift': -60}},
         {'label': 'Warm', 'opts': {'temperature': 40}},
         {'label': 'Cool', 'opts': {'temperature': -40}},
-        {'label': 'Grayscale+Contrast', 'opts': {'grayscale': True, 'enhance_contrast': True}},
-        {'label': 'Inverted+Blur', 'opts': {'invert': True, 'apply_blur': True, 'blur_radius': 2}},
+        {'label': 'Grayscale_Contrast', 'opts': {'grayscale': True, 'enhance_contrast': True}},
+        {'label': 'Inverted_Blur', 'opts': {'invert': True, 'apply_blur': True, 'blur_radius': 2}},
     ]
 
 def create_favicon(image, filename_without_ext):
-    """Generate a favicon.ico file from the processed image"""
     favicon_sizes = [16, 32, 48]
     output_filename = f"{filename_without_ext}_favicon.ico"
     output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-    
-    # Create images for different favicon sizes
     favicon_images = []
     for size in favicon_sizes:
         img_copy = image.copy()
         img_copy.thumbnail((size, size), Image.LANCZOS)
         favicon_images.append(img_copy)
-    
-    # Save as ICO
     favicon_images[0].save(
-        output_path, 
-        format='ICO', 
+        output_path,
+        format='ICO',
         sizes=[(img.width, img.height) for img in favicon_images]
     )
-    
     return {
         'path': output_path,
         'url': f"/{app.config['UPLOAD_FOLDER']}/{output_filename}"
     }
 
 def generate_formats(original_path, filename_without_ext, selected_formats, output_formats, preprocessing_options, variations_mode=False):
-    """Generate different image formats for various platforms"""
     config = load_config()
-    formats = config['formats']
-    
-    # Filter formats based on user selection
-    if selected_formats and len(selected_formats) > 0:
-        formats = {k: v for k, v in formats.items() if k in selected_formats}
-    
+    all_available_formats = config['formats']
+    formats_to_generate = {k: v for k, v in all_available_formats.items() if k in selected_formats}
     results = {}
-    original = Image.open(original_path)
-    
-    # Variations mode: generate multiple combos
+    try:
+        original = Image.open(original_path)
+    except Exception as e:
+        print(f"Error opening image: {e}")
+        raise ValueError("Could not open or process the uploaded image.")
     if variations_mode:
         results['variations'] = {}
-        for var in generate_variations():
+        variations_list = generate_variations()
+        for var in variations_list:
             label = var['label']
             opts = {**preprocessing_options, **var['opts']}
-            processed_image = preprocess_image(original.copy(), opts)
+            try:
+                processed_image = preprocess_image(original.copy(), opts)
+            except Exception as e:
+                print(f"Error preprocessing variation '{label}': {e}")
+                continue
             results['variations'][label] = {}
-            for format_name, format_config in formats.items():
+            for format_name, format_config in formats_to_generate.items():
                 dimensions = (format_config['width'], format_config['height'])
                 img_copy = processed_image.copy()
                 img_copy.thumbnail(dimensions, Image.LANCZOS)
-                new_img = Image.new("RGBA", dimensions, (255, 255, 255, 0))
+                new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
                 paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
                 if img_copy.mode == 'RGBA':
                     new_img.paste(img_copy, paste_pos, img_copy)
@@ -170,142 +172,153 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
                     new_img.paste(img_copy, paste_pos)
                 format_results = {}
                 for output_format in output_formats:
-                    if output_format.lower() == 'ico' and format_name != 'favicon':
+                    output_format_lower = output_format.lower()
+                    if output_format_lower == 'ico' and format_name != 'favicon':
                         continue
-                    output_filename = f"{filename_without_ext}_{label.replace(' ','_').lower()}_{format_name}.{output_format}"
+                    output_filename = f"{filename_without_ext}_{label}_{format_name}.{output_format_lower}"
                     output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-                    if output_format.lower() in ['jpg', 'jpeg']:
-                        save_img = new_img.convert('RGB')
-                        save_img.save(output_path, quality=95)
-                    elif output_format.lower() == 'webp':
-                        save_img = new_img.convert('RGBA')
-                        save_img.save(output_path, quality=95)
-                    else:
-                        new_img.save(output_path)
-                    format_results[output_format] = {
-                        'path': output_path,
-                        'url': f"/{app.config['UPLOAD_FOLDER']}/{output_filename}",
+                    try:
+                        if output_format_lower in ['jpg', 'jpeg']:
+                            save_img = new_img.convert('RGB')
+                            save_img.save(output_path, quality=95)
+                        elif output_format_lower == 'webp':
+                            save_img = new_img
+                            save_img.save(output_path, quality=95, lossless=False)
+                        else:
+                            new_img.save(output_path)
+                        format_results[output_format] = {
+                            'path': output_path,
+                            'url': f"/{app.config['UPLOAD_FOLDER']}/{output_filename}",
+                        }
+                    except Exception as e:
+                        print(f"Error saving variation {label}/{format_name} as {output_format}: {e}")
+                if format_results:
+                    results['variations'][label][format_name] = {
+                        'outputs': format_results,
+                        'dimensions': dimensions,
+                        'description': format_config.get('description', '')
                     }
-                results['variations'][label][format_name] = {
-                    'outputs': format_results,
-                    'dimensions': dimensions,
-                    'description': format_config.get('description', '')
-                }
+        if 'favicon' in selected_formats and 'ico' in output_formats:
+            try:
+                base_processed_image = preprocess_image(original.copy(), preprocessing_options)
+                results['favicon_ico'] = create_favicon(base_processed_image, filename_without_ext)
+            except Exception as e:
+                print(f"Error creating main favicon: {e}")
         return results
-    
-    # Preprocess the image
-    processed_image = preprocess_image(original.copy(), preprocessing_options)
-    
-    # Special case for favicon.ico - always create if requested
+    try:
+        processed_image = preprocess_image(original.copy(), preprocessing_options)
+    except Exception as e:
+        print(f"Error during initial preprocessing: {e}")
+        raise ValueError("Could not preprocess the image with selected options.")
     if 'favicon' in selected_formats and 'ico' in output_formats:
-        results['favicon_ico'] = create_favicon(processed_image, filename_without_ext)
-    
-    for format_name, format_config in formats.items():
+        try:
+            results['favicon_ico'] = create_favicon(processed_image.copy(), filename_without_ext)
+        except Exception as e:
+            print(f"Error creating favicon: {e}")
+    for format_name, format_config in formats_to_generate.items():
+        if format_name == 'favicon' and 'favicon_ico' in results:
+            continue
         dimensions = (format_config['width'], format_config['height'])
-        
-        # Create a copy to avoid modifying the original during resizing
         img_copy = processed_image.copy()
-        
-        # Resize the image while preserving aspect ratio
         img_copy.thumbnail(dimensions, Image.LANCZOS)
-        
-        # Create a new image with the exact dimensions and paste the resized image centered
-        new_img = Image.new("RGBA", dimensions, (255, 255, 255, 0))
-        
-        # Calculate position to paste (centered)
-        paste_pos = ((dimensions[0] - img_copy.width) // 2,
-                     (dimensions[1] - img_copy.height) // 2)
-        
-        # Paste the resized image
+        new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
+        paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
         if img_copy.mode == 'RGBA':
             new_img.paste(img_copy, paste_pos, img_copy)
         else:
             new_img.paste(img_copy, paste_pos)
-        
         format_results = {}
-        
-        # Save in each requested output format
         for output_format in output_formats:
-            # Skip ICO format for non-favicon images (handled separately)
-            if output_format.lower() == 'ico' and format_name != 'favicon':
+            output_format_lower = output_format.lower()
+            if output_format_lower == 'ico' and format_name != 'favicon':
                 continue
-                
-            # Save the new image
-            output_filename = f"{filename_without_ext}_{format_name}.{output_format}"
+            output_filename = f"{filename_without_ext}_{format_name}.{output_format_lower}"
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-            
-            # Convert mode for saving in different formats
-            if output_format.lower() == 'jpg' or output_format.lower() == 'jpeg':
-                save_img = new_img.convert('RGB')
-                save_img.save(output_path, quality=95)
-            elif output_format.lower() == 'webp':
-                save_img = new_img.convert('RGBA')
-                save_img.save(output_path, quality=95)
-            elif output_format.lower() == 'ico' and format_name == 'favicon':
-                # For favicon format, we use a specialized method
-                continue  # Skip as it's handled separately
-            else:  # PNG
-                new_img.save(output_path)
-            
-            format_results[output_format] = {
-                'path': output_path,
-                'url': f"/{app.config['UPLOAD_FOLDER']}/{output_filename}",
+            try:
+                if output_format_lower in ['jpg', 'jpeg']:
+                    save_img = new_img.convert('RGB')
+                    save_img.save(output_path, quality=95)
+                elif output_format_lower == 'webp':
+                    save_img = new_img
+                    save_img.save(output_path, quality=95, lossless=False)
+                else:
+                    new_img.save(output_path)
+                format_results[output_format] = {
+                    'path': output_path,
+                    'url': f"/{app.config['UPLOAD_FOLDER']}/{output_filename}",
+                }
+            except Exception as e:
+                print(f"Error saving {format_name} as {output_format}: {e}")
+        if format_results:
+            results[format_name] = {
+                'outputs': format_results,
+                'dimensions': dimensions,
+                'description': format_config.get('description', '')
             }
-        
-        results[format_name] = {
-            'outputs': format_results,
-            'dimensions': dimensions,
-            'description': format_config.get('description', '')
-        }
-    
     return results
 
 def create_zip_file(results, filename_prefix):
-    """Create a ZIP file containing all generated images"""
-    # Create a temporary file
     temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
     temp_zip.close()
-    
-    # Create a ZIP file
-    with zipfile.ZipFile(temp_zip.name, 'w') as zipf:
-        # Add original image
-        if 'original' in results:
-            original_path = results['original']['path']
-            zipf.write(original_path, os.path.basename(original_path))
-        
-        # Add special favicon.ico if present
-        if 'favicon_ico' in results:
-            favicon_path = results['favicon_ico']['path']
-            zipf.write(favicon_path, 'favicon.ico')
-        
-        # Add all other generated images
-        for format_name, format_data in results.items():
-            if format_name in ['original', 'favicon_ico']:
-                continue
-                
-            if 'outputs' in format_data:
-                for output_format, output_data in format_data['outputs'].items():
-                    file_path = output_data['path']
-                    # Use a clean filename in the ZIP
-                    clean_name = f"{format_name}.{output_format}"
-                    zipf.write(file_path, clean_name)
-    
-    # Save the ZIP file to the uploads folder
+    added_files = set()
+    try:
+        with zipfile.ZipFile(temp_zip.name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            if 'original' in results and 'path' in results['original']:
+                original_path = results['original']['path']
+                if os.path.exists(original_path):
+                    zip_entry_name = f"original{os.path.splitext(original_path)[1]}"
+                    zipf.write(original_path, zip_entry_name)
+                    added_files.add(original_path)
+            if 'favicon_ico' in results and 'path' in results['favicon_ico']:
+                favicon_path = results['favicon_ico']['path']
+                if os.path.exists(favicon_path):
+                    zipf.write(favicon_path, 'favicon.ico')
+                    added_files.add(favicon_path)
+            if 'variations' in results:
+                for variation_label, variation_data in results['variations'].items():
+                    variation_prefix = variation_label.replace(' ', '_').lower()
+                    for format_name, format_data in variation_data.items():
+                        if 'outputs' in format_data:
+                            for output_format, output_data in format_data['outputs'].items():
+                                file_path = output_data['path']
+                                if os.path.exists(file_path) and file_path not in added_files:
+                                    zip_entry_name = f"{variation_prefix}/{format_name}.{output_format.lower()}"
+                                    zipf.write(file_path, zip_entry_name)
+                                    added_files.add(file_path)
+            else:
+                for format_name, format_data in results.items():
+                    if format_name in ['original', 'favicon_ico', 'zip', 'variations']:
+                        continue
+                    if 'outputs' in format_data:
+                        for output_format, output_data in format_data['outputs'].items():
+                            file_path = output_data['path']
+                            if os.path.exists(file_path) and file_path not in added_files:
+                                clean_name = f"{format_name}.{output_format.lower()}"
+                                zipf.write(file_path, clean_name)
+                                added_files.add(file_path)
+    except Exception as e:
+        print(f"Error creating zip file: {e}")
+        os.unlink(temp_zip.name)
+        return None
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     zip_filename = f"{filename_prefix}_brandkit_{timestamp}.zip"
     zip_path = os.path.join(app.config['UPLOAD_FOLDER'], zip_filename)
-    
-    # Copy the temporary ZIP to the uploads folder
-    with open(temp_zip.name, 'rb') as f_in:
-        with open(zip_path, 'wb') as f_out:
-            f_out.write(f_in.read())
-    
-    # Clean up the temporary file
-    os.unlink(temp_zip.name)
-    
+    try:
+        os.rename(temp_zip.name, zip_path)
+    except Exception as e:
+        print(f"Error moving temp zip file: {e}")
+        try:
+            with open(temp_zip.name, 'rb') as f_in, open(zip_path, 'wb') as f_out:
+                f_out.write(f_in.read())
+            os.unlink(temp_zip.name)
+        except Exception as copy_e:
+            print(f"Error copying temp zip file: {copy_e}")
+            os.unlink(temp_zip.name)
+            return None
     return {
         'path': zip_path,
-        'url': f"/{app.config['UPLOAD_FOLDER']}/{zip_filename}"
+        'url': f"/{app.config['UPLOAD_FOLDER']}/{zip_filename}",
+        'filename': zip_filename
     }
 
 @app.route('/')
@@ -317,84 +330,73 @@ def index():
 def upload_file():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
-    
     file = request.files['file']
-    
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
-    
     if file and allowed_file(file.filename):
-        # Parse form data
-        selected_formats = request.form.getlist('formats')
-        output_formats = request.form.getlist('output_formats')
-        
-        # Default to all formats if none selected
-        if not selected_formats:
+        try:
+            selected_formats = request.form.getlist('selected_formats')
+            output_formats = request.form.getlist('output_formats')
+            variations_mode = request.form.get('variations_mode') == 'true'
             config = load_config()
-            selected_formats = list(config['formats'].keys())
-        
-        # Default to PNG if no output format is selected
-        if not output_formats:
-            output_formats = ['png']
-        
-        # Get preprocessing options
-        preprocessing_options = {
-            'grayscale': request.form.get('grayscale') == 'true',
-            'bw': request.form.get('bw') == 'true',
-            'invert': request.form.get('invert') == 'true',
-            'hue_shift': int(request.form.get('hue_shift', 0)),
-            'temperature': int(request.form.get('temperature', 0)),
-            'enhance_contrast': request.form.get('enhance_contrast') == 'true',
-            'apply_blur': request.form.get('apply_blur') == 'true',
-            'blur_radius': float(request.form.get('blur_radius', 2)),
-            'add_watermark': request.form.get('add_watermark') == 'true',
-            'watermark_text': request.form.get('watermark_text', '© BrandKit'),
-            'watermark_opacity': float(request.form.get('watermark_opacity', 0.3))
-        }
-        
-        # Generate a unique filename
-        original_ext = file.filename.rsplit('.', 1)[1].lower()
-        filename_without_ext = uuid.uuid4().hex
-        unique_filename = f"{filename_without_ext}.{original_ext}"
-        
-        # Save the uploaded file
-        original_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
-        file.save(original_path)
-        
-        # Check for variations mode
-        variations_mode = request.form.get('variations_mode') == 'true'
-        
-        # Generate different formats
-        results = generate_formats(
-            original_path, 
-            filename_without_ext, 
-            selected_formats, 
-            output_formats, 
-            preprocessing_options,
-            variations_mode=variations_mode
-        )
-        
-        # Add the original file info to results
-        results['original'] = {
-            'path': original_path,
-            'url': f"/{app.config['UPLOAD_FOLDER']}/{unique_filename}"
-        }
-        
-        # Create a ZIP file with all generated images
-        zip_info = create_zip_file(results, filename_without_ext)
-        results['zip'] = zip_info
-        
-        return jsonify({
-            'success': True,
-            'message': 'File uploaded successfully',
-            'results': results
-        })
-    
+            if not selected_formats:
+                selected_formats = list(config['formats'].keys())
+            if not output_formats:
+                output_formats = ['png']
+            if 'ico' in output_formats and 'favicon' not in selected_formats:
+                output_formats.remove('ico')
+                if not output_formats:
+                    output_formats.append('png')
+            preprocessing_options = {
+                'grayscale': request.form.get('grayscale') == 'true',
+                'bw': request.form.get('bw') == 'true',
+                'invert': request.form.get('invert') == 'true',
+                'hue_shift': int(request.form.get('hue_shift', 0)),
+                'temperature': int(request.form.get('temperature', 0)),
+                'enhance_contrast': request.form.get('enhance_contrast') == 'true',
+                'apply_blur': request.form.get('apply_blur') == 'true',
+                'blur_radius': float(request.form.get('blur_radius', 2.0)),
+                'add_watermark': request.form.get('add_watermark') == 'true',
+                'watermark_text': request.form.get('watermark_text', '© BrandKit'),
+                'watermark_opacity': float(request.form.get('watermark_opacity', 0.3))
+            }
+            original_ext = file.filename.rsplit('.', 1)[1].lower()
+            filename_without_ext = uuid.uuid4().hex
+            unique_filename = f"{filename_without_ext}.{original_ext}"
+            original_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+            file.save(original_path)
+            results = generate_formats(
+                original_path,
+                filename_without_ext,
+                selected_formats,
+                output_formats,
+                preprocessing_options,
+                variations_mode=variations_mode
+            )
+            results['original'] = {
+                'path': original_path,
+                'url': f"/{app.config['UPLOAD_FOLDER']}/{unique_filename}"
+            }
+            zip_info = create_zip_file(results, filename_without_ext)
+            if zip_info:
+                results['zip'] = zip_info
+            return jsonify({
+                'success': True,
+                'message': 'File processed successfully',
+                'results': results
+            })
+        except ValueError as ve:
+            print(f"Value Error during processing: {ve}")
+            return jsonify({'error': str(ve)}), 400
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': 'An unexpected error occurred during processing.'}), 500
     return jsonify({'error': 'File type not allowed'}), 400
 
 @app.route('/download-zip/<filename>')
 def download_zip(filename):
-    """Download a ZIP file"""
     zip_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     if os.path.exists(zip_path):
         return send_file(zip_path, as_attachment=True)
