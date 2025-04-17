@@ -7,7 +7,8 @@ import tempfile
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
 from werkzeug.utils import secure_filename
-from PIL import Image, ImageEnhance, ImageFilter, ImageDraw, ImageFont
+from PIL import Image, ImageEnhance, ImageFilter, ImageDraw, ImageFont, ImageOps
+import numpy as np
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
@@ -28,88 +29,87 @@ def allowed_file(filename):
 
 def preprocess_image(image, options):
     """Apply preprocessing options to the image"""
+    # Grayscale
     if options.get('grayscale'):
         image = image.convert('L').convert('RGBA')
-    
+    # High-contrast B&W
+    if options.get('bw'):
+        image = image.convert('L')
+        image = image.point(lambda x: 0 if x < 128 else 255, '1').convert('RGBA')
+    # Invert
+    if options.get('invert'):
+        if image.mode != 'RGBA':
+            image = image.convert('RGBA')
+        r, g, b, a = image.split()
+        rgb_image = Image.merge('RGB', (r, g, b))
+        inverted = ImageOps.invert(rgb_image)
+        image = Image.merge('RGBA', (*inverted.split(), a))
+    # Hue shift
+    if options.get('hue_shift', 0):
+        image = shift_hue(image, options.get('hue_shift', 0))
+    # Temperature
+    if options.get('temperature', 0):
+        image = adjust_temperature(image, options.get('temperature', 0))
+    # Enhance contrast
     if options.get('enhance_contrast'):
         enhancer = ImageEnhance.Contrast(image)
-        image = enhancer.enhance(1.5)  # Increase contrast by 50%
-    
+        image = enhancer.enhance(1.5)
+    # Blur
     if options.get('apply_blur'):
         blur_radius = options.get('blur_radius', 2)
         image = image.filter(ImageFilter.GaussianBlur(radius=blur_radius))
-    
+    # Watermark
     if options.get('add_watermark') and options.get('watermark_text'):
-        # Create a transparent layer for the watermark
         watermark = Image.new('RGBA', image.size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(watermark)
-        
-        # Try to use a system font or fall back to default
         try:
             font = ImageFont.truetype("Arial", 36)
         except IOError:
             font = ImageFont.load_default()
-        
-        # Get the size of the text
         text_width, text_height = draw.textbbox((0, 0), options.get('watermark_text'), font=font)[2:4]
-        
-        # Calculate position (bottom right corner with some padding)
         position = (image.width - text_width - 20, image.height - text_height - 20)
-        
-        # Draw the text with transparency
         opacity = int(255 * float(options.get('watermark_opacity', 0.3)))
         draw.text(position, options.get('watermark_text'), fill=(255, 255, 255, opacity), font=font)
-        
-        # Composite the watermark with the image
         image = Image.alpha_composite(image.convert('RGBA'), watermark)
-    
     return image
 
-def create_favicon(image, filename_without_ext):
-    """Generate a favicon.ico file from the processed image"""
-    favicon_sizes = [16, 32, 48]
-    output_filename = f"{filename_without_ext}_favicon.ico"
-    output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-    
-    # Create images for different favicon sizes
-    favicon_images = []
-    for size in favicon_sizes:
-        img_copy = image.copy()
-        img_copy.thumbnail((size, size), Image.LANCZOS)
-        favicon_images.append(img_copy)
-    
-    # Save as ICO
-    favicon_images[0].save(
-        output_path, 
-        format='ICO', 
-        sizes=[(img.width, img.height) for img in favicon_images]
-    )
-    
-    return {
-        'path': output_path,
-        'url': f"/{app.config['UPLOAD_FOLDER']}/{output_filename}"
-    }
+def shift_hue(img, deg):
+    if img.mode != 'RGBA':
+        img = img.convert('RGBA')
+    arr = np.array(img)
+    r, g, b, a = arr[...,0], arr[...,1], arr[...,2], arr[...,3]
+    hsv = np.array(Image.fromarray(np.stack([r,g,b], axis=-1)).convert('HSV'))
+    hsv[...,0] = (hsv[...,0].astype(int) + int(deg/360*255)) % 255
+    rgb = Image.fromarray(hsv, 'HSV').convert('RGBA')
+    arr2 = np.array(rgb)
+    arr2[...,3] = a
+    return Image.fromarray(arr2, 'RGBA')
 
-def generate_formats(original_path, filename_without_ext, selected_formats, output_formats, preprocessing_options):
-    """Generate different image formats for various platforms"""
-    config = load_config()
-    formats = config['formats']
-    
-    # Filter formats based on user selection
-    if selected_formats and len(selected_formats) > 0:
-        formats = {k: v for k, v in formats.items() if k in selected_formats}
-    
-    results = {}
-    original = Image.open(original_path)
-    
-    # Preprocess the image
-    processed_image = preprocess_image(original.copy(), preprocessing_options)
-    
-    # Special case for favicon.ico - always create if requested
-    if 'favicon' in selected_formats and 'ico' in output_formats:
-        results['favicon_ico'] = create_favicon(processed_image, filename_without_ext)
-    
-    for format_name, format_config in formats.items():
+def adjust_temperature(img, temp):
+    # temp: -100 (cool) to +100 (warm)
+    if img.mode != 'RGBA':
+        img = img.convert('RGBA')
+    arr = np.array(img).astype(np.int16)
+    if temp > 0:
+        arr[...,0] = np.clip(arr[...,0] + temp, 0, 255) # more red
+        arr[...,2] = np.clip(arr[...,2] - temp//2, 0, 255) # less blue
+    elif temp < 0:
+        arr[...,2] = np.clip(arr[...,2] + abs(temp), 0, 255) # more blue
+        arr[...,0] = np.clip(arr[...,0] + temp//2, 0, 255) # less red
+    arr = np.clip(arr, 0, 255).astype(np.uint8)
+    return Image.fromarray(arr, 'RGBA')
+
+def generate_variations():
+    return [
+        {'label': 'Original', 'opts': {}},
+        {'label': 'Grayscale', 'opts': {'grayscale': True}},
+        {'label': 'B&W', 'opts': {'bw': True}},
+        {'label': 'Inverted', 'opts': {'invert': True}},
+        {'label': 'Hue +60°', 'opts': {'hue_shift': 60}},
+        {'label': 'Hue -60°', 'opts': {'hue_shift': -60}},
+        {'label': 'Warm', 'opts': {'temperature': 40}},
+        {'label': 'Cool', 'opts': {'temperature': -40}},
+        {'label': 'Grayscale+Contrast', 'opts': {'grayscale': True, 'enhance_contrast': True}},
         dimensions = (format_config['width'], format_config['height'])
         
         # Create a copy to avoid modifying the original during resizing
