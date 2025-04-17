@@ -179,15 +179,54 @@
                                 <div class="flex items-center mb-3">
                                     <input 
                                         type="checkbox" 
-                                        id="enhance-contrast" 
-                                        x-model="preprocessingOptions.enhance_contrast"
+                                        id="bw" 
+                                        x-model="preprocessingOptions.bw"
                                         class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
-                                    <label for="enhance-contrast" class="ml-2 text-gray-700">Enhance Contrast</label>
+                                    <label for="bw" class="ml-2 text-gray-700">High-Contrast B&amp;W</label>
+                                </div>
+                                
+                                <div class="flex items-center mb-3">
+                                    <input 
+                                        type="checkbox" 
+                                        id="invert" 
+                                        x-model="preprocessingOptions.invert"
+                                        class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                                    <label for="invert" class="ml-2 text-gray-700">Invert Colors</label>
                                 </div>
                             </div>
                             
                             <!-- Advanced Options (toggle) -->
                             <div x-show="showAdvancedOptions">
+                                <div class="mb-3">
+                                    <label for="hue-shift" class="block text-sm text-gray-600 mb-1">Hue Shift</label>
+                                    <div class="flex items-center">
+                                        <input 
+                                            type="range" 
+                                            id="hue-shift" 
+                                            x-model.number="preprocessingOptions.hue_shift"
+                                            min="-180" 
+                                            max="180" 
+                                            step="1"
+                                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                        <span class="ml-2 text-sm text-gray-600" x-text="preprocessingOptions.hue_shift + '°'"></span>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="temperature" class="block text-sm text-gray-600 mb-1">Temperature</label>
+                                    <div class="flex items-center">
+                                        <input 
+                                            type="range" 
+                                            id="temperature" 
+                                            x-model.number="preprocessingOptions.temperature"
+                                            min="-100" 
+                                            max="100" 
+                                            step="1"
+                                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                        <span class="ml-2 text-sm text-gray-600" x-text="preprocessingOptions.temperature"></span>
+                                    </div>
+                                </div>
+                                
                                 <div class="flex items-center mb-3">
                                     <input 
                                         type="checkbox" 
@@ -248,6 +287,16 @@
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Variations toggle -->
+                        <div class="mt-4 flex items-center">
+                            <input 
+                                type="checkbox" 
+                                id="variations_mode" 
+                                x-model="variationsMode"
+                                class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                            <label for="variations_mode" class="ml-2 text-gray-700 font-medium">Generate creative variations (multiple combos per format)</label>
+                        </div>
                     </div>
                 </div>
                 
@@ -263,16 +312,19 @@
             </section>
             
             <!-- Processing Section -->
-            <section 
-                class="mb-10 bg-white rounded-xl shadow-md p-8 text-center"
-                x-show="isProcessing" x-cloak>
-                <svg class="animate-spin h-12 w-12 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p class="mt-4 text-lg text-gray-700">Processing your image...</p>
-                <p class="mt-2 text-sm text-gray-500">This may take a few moments</p>
-            </section>
+            <div x-show="isProcessing" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm" style="backdrop-filter: blur(6px);">
+                <div class="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center w-80">
+                    <svg class="animate-spin h-10 w-10 text-blue-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <div class="w-full bg-gray-200 rounded-full h-3 mb-4">
+                        <div class="bg-blue-500 h-3 rounded-full transition-all duration-300" :style="'width: ' + progressPercent + '%'" x-text="progressPercent + '%'" style="text-align:center;color:white;"></div>
+                    </div>
+                    <div class="text-gray-700 text-center text-lg font-medium">Processing your image...</div>
+                    <div class="text-gray-500 text-sm mt-2">This may take a few moments. Please wait.</div>
+                </div>
+            </div>
             
             <!-- Results Section -->
             <section 
@@ -308,48 +360,42 @@
                     </div>
                 </div>
                 
-                <!-- Favicon -->
-                <div x-show="results.favicon_ico" class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                    <div class="flex flex-col sm:flex-row justify-between items-center">
-                        <div class="mb-4 sm:mb-0 flex items-center">
-                            <div class="flex flex-col items-center justify-center mr-4">
+                <!-- Favicon & Original Image Row -->
+                <div class="flex flex-col md:flex-row gap-6 mb-8">
+                    <template x-if="results.favicon_ico">
+                        <div class="flex-1 bg-gray-50 rounded-lg border border-gray-100 p-4 flex flex-col items-center justify-center">
+                            <div class="flex flex-col items-center justify-center mb-2">
                                 <div class="w-16 h-16 flex items-center justify-center rounded-lg bg-white shadow-sm border p-2 mb-1">
                                     <img :src="results.favicon_ico.url" class="w-10 h-10 object-contain" />
                                 </div>
                                 <span class="text-xs text-gray-500 mt-1">16×16px</span>
                             </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-800">Favicon.ico</h3>
-                                <p class="text-sm text-gray-600">Multi-size browser icon (16×16, 32×32, 48×48)</p>
-                            </div>
-                        </div>
-                        <a 
-                            :href="results.favicon_ico.url" 
-                            download 
-                            class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md flex items-center text-sm font-medium transition">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                            </svg>
-                            Download favicon.ico
-                        </a>
-                    </div>
-                </div>
-                
-                <!-- Original Image -->
-                <div class="bg-gray-50 rounded-lg p-5 mb-8 border border-gray-100">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Original Image</h3>
-                    <div class="max-w-lg mx-auto">
-                        <div class="aspect-w-16 aspect-h-9 overflow-hidden rounded-lg shadow-md mb-4">
-                            <img :src="results.original.url" class="object-contain w-full h-full bg-white" />
-                        </div>
-                        <div class="flex justify-center">
-                            <a :href="results.original.url" download class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-md flex items-center text-sm font-medium transition">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-1">Favicon.ico</h3>
+                            <p class="text-sm text-gray-600 mb-2 text-center">Multi-size browser icon (16×16, 32×32, 48×48)</p>
+                            <a 
+                                :href="results.favicon_ico.url" 
+                                download 
+                                class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md flex items-center text-sm font-medium transition">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                                 </svg>
-                                Download Original Image
+                                Download favicon.ico
                             </a>
                         </div>
+                    </template>
+                    <div class="flex-1 bg-gray-50 rounded-lg p-4 border border-gray-100 flex flex-col items-center justify-center">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Original Image</h3>
+                        <div class="w-full max-w-xs mx-auto mb-3">
+                            <div class="aspect-w-16 aspect-h-9 overflow-hidden rounded-lg shadow-md">
+                                <img :src="results.original.url" class="object-contain w-full h-full bg-white" />
+                            </div>
+                        </div>
+                        <a :href="results.original.url" download class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-md flex items-center text-sm font-medium transition">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            Download Original Image
+                        </a>
                     </div>
                 </div>
                 
@@ -394,59 +440,7 @@
                     <template x-for="(formatData, format) in getFilteredResultFormats()" :key="format">
                         <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition">
                             <div class="p-4 bg-gray-50 border-b">
-                                <h4 class="text-md font-semibold text-gray-800 capitalize">
-                                    <span x-text="format.replace(/_/g, ' ')"></span>
-                                </h4>
-                                <div class="flex flex-wrap items-center text-sm mt-1">
-                                    <span class="text-gray-500 mr-3">
-                                        <span x-text="formatData.dimensions[0]"></span>×<span x-text="formatData.dimensions[1]"></span>px
-                                    </span>
-                                    <span class="text-gray-500" x-text="formatData.description"></span>
-                                </div>
-                            </div>
-                            
-                            <div class="p-4">
-                                <div class="flex items-center justify-center p-3 bg-gray-100 bg-opacity-50 rounded-lg">
-                                    <div :class="getAspectRatioClass(formatData.dimensions)" class="relative overflow-hidden rounded shadow-sm bg-white border border-gray-200 flex items-center justify-center">
-                                        <img :src="Object.values(formatData.outputs)[0].url" class="object-contain max-w-full max-h-full" />
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="p-3 bg-gray-50 border-t flex flex-wrap gap-2">
-                                <template x-for="(outputData, outputFormat) in formatData.outputs" :key="outputFormat">
-                                    <a 
-                                        :href="outputData.url" 
-                                        download 
-                                        class="px-2 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded flex items-center text-xs font-medium transition">
-                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                                        </svg>
-                                        <span class="uppercase" x-text="outputFormat"></span>
-                                    </a>
-                                </template>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-                
-                <!-- Empty State -->
-                <div 
-                    x-show="Object.keys(getFilteredResultFormats()).length === 0 && activeResultCategory !== 'All'" 
-                    class="mt-4 py-12 text-center bg-gray-50 rounded-lg">
-                    <svg class="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                    <p class="mt-4 text-gray-600">No formats were generated for this category.</p>
-                    <button 
-                        @click="activeResultCategory = 'All'" 
-                        class="mt-2 text-blue-600 hover:text-blue-800 font-medium">
-                        View all formats
-                    </button>
-                </div>
-            </section>
-        </main>
-
+                                <h4 class="text-md font-semibold text-gray-800 capitalize"></h4>
         <!-- Footer -->
         <footer class="mt-12 text-center text-gray-500 text-sm">
             <p>© 2025 Brand Kit Generator. Created with ❤️ using Flask and Tailwind CSS.</p>
@@ -681,11 +675,10 @@
                 
                 getCategoryCount(category) {
                     if (!this.formatCategories[category]) return 0;
-                    
                     const categoryFormats = this.formatCategories[category];
                     const formats = this.getResultFormats();
-                    
-                    return Object.keys(formats).filter(key => categoryFormats.includes(key)).length;
+                    // Only count formats that exist in results
+                    return categoryFormats.filter(key => Object.keys(formats).includes(key)).length;
                 },
                 
                 getAspectRatioClass(dimensions) {

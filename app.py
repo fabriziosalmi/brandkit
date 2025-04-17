@@ -110,6 +110,97 @@ def generate_variations():
         {'label': 'Warm', 'opts': {'temperature': 40}},
         {'label': 'Cool', 'opts': {'temperature': -40}},
         {'label': 'Grayscale+Contrast', 'opts': {'grayscale': True, 'enhance_contrast': True}},
+        {'label': 'Inverted+Blur', 'opts': {'invert': True, 'apply_blur': True, 'blur_radius': 2}},
+    ]
+
+def create_favicon(image, filename_without_ext):
+    """Generate a favicon.ico file from the processed image"""
+    favicon_sizes = [16, 32, 48]
+    output_filename = f"{filename_without_ext}_favicon.ico"
+    output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+    
+    # Create images for different favicon sizes
+    favicon_images = []
+    for size in favicon_sizes:
+        img_copy = image.copy()
+        img_copy.thumbnail((size, size), Image.LANCZOS)
+        favicon_images.append(img_copy)
+    
+    # Save as ICO
+    favicon_images[0].save(
+        output_path, 
+        format='ICO', 
+        sizes=[(img.width, img.height) for img in favicon_images]
+    )
+    
+    return {
+        'path': output_path,
+        'url': f"/{app.config['UPLOAD_FOLDER']}/{output_filename}"
+    }
+
+def generate_formats(original_path, filename_without_ext, selected_formats, output_formats, preprocessing_options, variations_mode=False):
+    """Generate different image formats for various platforms"""
+    config = load_config()
+    formats = config['formats']
+    
+    # Filter formats based on user selection
+    if selected_formats and len(selected_formats) > 0:
+        formats = {k: v for k, v in formats.items() if k in selected_formats}
+    
+    results = {}
+    original = Image.open(original_path)
+    
+    # Variations mode: generate multiple combos
+    if variations_mode:
+        results['variations'] = {}
+        for var in generate_variations():
+            label = var['label']
+            opts = {**preprocessing_options, **var['opts']}
+            processed_image = preprocess_image(original.copy(), opts)
+            results['variations'][label] = {}
+            for format_name, format_config in formats.items():
+                dimensions = (format_config['width'], format_config['height'])
+                img_copy = processed_image.copy()
+                img_copy.thumbnail(dimensions, Image.LANCZOS)
+                new_img = Image.new("RGBA", dimensions, (255, 255, 255, 0))
+                paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                if img_copy.mode == 'RGBA':
+                    new_img.paste(img_copy, paste_pos, img_copy)
+                else:
+                    new_img.paste(img_copy, paste_pos)
+                format_results = {}
+                for output_format in output_formats:
+                    if output_format.lower() == 'ico' and format_name != 'favicon':
+                        continue
+                    output_filename = f"{filename_without_ext}_{label.replace(' ','_').lower()}_{format_name}.{output_format}"
+                    output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+                    if output_format.lower() in ['jpg', 'jpeg']:
+                        save_img = new_img.convert('RGB')
+                        save_img.save(output_path, quality=95)
+                    elif output_format.lower() == 'webp':
+                        save_img = new_img.convert('RGBA')
+                        save_img.save(output_path, quality=95)
+                    else:
+                        new_img.save(output_path)
+                    format_results[output_format] = {
+                        'path': output_path,
+                        'url': f"/{app.config['UPLOAD_FOLDER']}/{output_filename}",
+                    }
+                results['variations'][label][format_name] = {
+                    'outputs': format_results,
+                    'dimensions': dimensions,
+                    'description': format_config.get('description', '')
+                }
+        return results
+    
+    # Preprocess the image
+    processed_image = preprocess_image(original.copy(), preprocessing_options)
+    
+    # Special case for favicon.ico - always create if requested
+    if 'favicon' in selected_formats and 'ico' in output_formats:
+        results['favicon_ico'] = create_favicon(processed_image, filename_without_ext)
+    
+    for format_name, format_config in formats.items():
         dimensions = (format_config['width'], format_config['height'])
         
         # Create a copy to avoid modifying the original during resizing
@@ -249,6 +340,10 @@ def upload_file():
         # Get preprocessing options
         preprocessing_options = {
             'grayscale': request.form.get('grayscale') == 'true',
+            'bw': request.form.get('bw') == 'true',
+            'invert': request.form.get('invert') == 'true',
+            'hue_shift': int(request.form.get('hue_shift', 0)),
+            'temperature': int(request.form.get('temperature', 0)),
             'enhance_contrast': request.form.get('enhance_contrast') == 'true',
             'apply_blur': request.form.get('apply_blur') == 'true',
             'blur_radius': float(request.form.get('blur_radius', 2)),
@@ -266,13 +361,17 @@ def upload_file():
         original_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
         file.save(original_path)
         
+        # Check for variations mode
+        variations_mode = request.form.get('variations_mode') == 'true'
+        
         # Generate different formats
         results = generate_formats(
             original_path, 
             filename_without_ext, 
             selected_formats, 
             output_formats, 
-            preprocessing_options
+            preprocessing_options,
+            variations_mode=variations_mode
         )
         
         # Add the original file info to results
