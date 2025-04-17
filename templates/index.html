@@ -180,7 +180,6 @@
             <section
                 class="bg-white rounded-xl shadow-lg p-6 md:p-8"
                 x-show="isComplete">
-
                 <div class="flex flex-col sm:flex-row justify-between items-center mb-6 pb-4 border-b">
                     <h2 class="text-2xl font-semibold text-gray-700 mb-3 sm:mb-0">Your Brand Kit is Ready!</h2>
                     <div class="flex space-x-3">
@@ -238,19 +237,19 @@
                             <template x-for="(variationData, variationLabel) in results.variations" :key="variationLabel">
                                 <div class="bg-gray-50 rounded-lg p-4 border">
                                     <h4 class="text-lg font-medium text-gray-700 mb-3" x-text="variationLabel.replace(/_/g, ' ')"></h4>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <!-- Two-column layout for format details -->
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
                                         <template x-for="(formatData, formatName) in variationData" :key="formatName">
-                                            <div class="bg-white p-3 rounded shadow-sm border">
-                                                <p class="text-sm font-semibold text-gray-600 mb-1" x-text="`${formatName} (${formatData.dimensions[0]}x${formatData.dimensions[1]})`"></p>
-                                                <p class="text-xs text-gray-500 mb-2" x-text="formatData.description"></p>
-                                                <div class="aspect-w-16 aspect-h-9 bg-gray-200 rounded overflow-hidden mb-2 flex items-center justify-center">
-                                                     <!-- Display first available output format as preview -->
-                                                     <img :src="Object.values(formatData.outputs)[0].url" class="object-contain max-w-full max-h-full" :alt="`${variationLabel} - ${formatName}`"/>
+                                            <div class="bg-white p-3 rounded border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                                                <div class="mb-2 sm:mb-0">
+                                                    <p class="text-sm font-semibold text-gray-700" x-text="`${formatName} (${formatData.dimensions[0]}x${formatData.dimensions[1]})`"></p>
+                                                    <p class="text-xs text-gray-500" x-text="formatData.description"></p>
                                                 </div>
-                                                <div class="flex flex-wrap gap-2 justify-center">
+                                                <!-- Download Buttons -->
+                                                <div class="flex flex-wrap gap-2 shrink-0">
                                                     <template x-for="(outputData, outputFormat) in formatData.outputs" :key="outputFormat">
                                                         <a :href="outputData.url" download :download="`${variationLabel}_${formatName}.${outputFormat}`"
-                                                           class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200">
+                                                           class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 whitespace-nowrap">
                                                            .<span x-text="outputFormat"></span>
                                                         </a>
                                                     </template>
@@ -266,19 +265,19 @@
                     <!-- Standard (Non-Variations) Display -->
                     <div x-show="!results.variations">
                          <h3 class="text-xl font-semibold text-gray-800 mb-4">Generated Formats</h3>
-                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                         <!-- Two-column layout for format details -->
+                         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                              <template x-for="(formatData, formatName) in results" :key="formatName">
-                                 <div x-show="!['original', 'zip', 'variations', 'favicon_ico'].includes(formatName)" class="bg-gray-50 rounded-lg p-4 border shadow-sm">
-                                     <h4 class="text-lg font-medium text-gray-700 mb-1" x-text="`${formatName} (${formatData.dimensions[0]}x${formatData.dimensions[1]})`"></h4>
-                                     <p class="text-xs text-gray-500 mb-3" x-text="formatData.description"></p>
-                                     <div class="aspect-w-16 aspect-h-9 bg-gray-200 rounded overflow-hidden mb-3 flex items-center justify-center">
-                                         <!-- Display first available output format as preview -->
-                                         <img :src="Object.values(formatData.outputs)[0].url" class="object-contain max-w-full max-h-full" :alt="formatName"/>
+                                 <div x-show="!['original', 'zip', 'variations', 'favicon_ico'].includes(formatName)" class="bg-gray-50 rounded-lg p-3 border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                                     <div class="mb-2 sm:mb-0">
+                                         <h4 class="text-sm font-semibold text-gray-700 mb-0.5" x-text="`${formatName} (${formatData.dimensions[0]}x${formatData.dimensions[1]})`"></h4>
+                                         <p class="text-xs text-gray-500" x-text="formatData.description"></p>
                                      </div>
-                                     <div class="flex flex-wrap gap-2 justify-center">
+                                     <!-- Download Buttons -->
+                                     <div class="flex flex-wrap gap-2 shrink-0">
                                          <template x-for="(outputData, outputFormat) in formatData.outputs" :key="outputFormat">
                                              <a :href="outputData.url" download :download="`${formatName}.${outputFormat}`"
-                                                class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200">
+                                                class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 whitespace-nowrap">
                                                 Download .<span x-text="outputFormat"></span>
                                              </a>
                                          </template>
