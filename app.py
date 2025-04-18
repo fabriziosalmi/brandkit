@@ -12,31 +12,67 @@ import numpy as np
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}  # Added webp
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+# --- Configuration Loading with Environment Variable Overrides ---
+DEFAULT_MAX_UPLOAD_MB = 16
+try:
+    max_upload_mb = int(os.environ.get('BRANDKIT_MAX_UPLOAD_MB', DEFAULT_MAX_UPLOAD_MB))
+except ValueError:
+    max_upload_mb = DEFAULT_MAX_UPLOAD_MB
+app.config['MAX_CONTENT_LENGTH'] = max_upload_mb * 1024 * 1024
+
+# Default config structure if file is missing or invalid
+DEFAULT_CONFIG = {
+    "formats": {
+        "website": {"width": 1200, "height": 630, "description": "Open Graph, Twitter Cards"},
+        "webapp": {"width": 512, "height": 512, "description": "Web App Manifest Icon"},
+        "mobile": {"width": 1080, "height": 1920, "description": "Mobile Screens"},
+        "social": {"width": 1080, "height": 1080, "description": "Social Media Posts"},
+        "favicon": {"width": 48, "height": 48, "description": "Browser Favicon (generates .ico)"}
+    },
+    "format_categories": {},
+    "output_formats": ["png", "jpg", "webp", "ico"],
+    "preprocessing_options": {
+        "grayscale": False,
+        "bw": False,
+        "invert": False,
+        "hue_shift": 0,
+        "temperature": 0,
+        "enhance_contrast": False,
+        "apply_blur": False,
+        "blur_radius": 2,
+        "add_watermark": False,
+        "watermark_text": "© BrandKit",
+        "watermark_opacity": 0.3
+    }
+}
+
+# Load configuration from file and apply environment overrides
+def load_config():
+    config = DEFAULT_CONFIG.copy() # Start with defaults
+    try:
+        with open('config.json', 'r') as f:
+            file_config = json.load(f)
+            # Merge file config into defaults (simple merge, not deep)
+            config.update(file_config)
+    except FileNotFoundError:
+        print("Warning: config.json not found. Using default configuration.")
+    except json.JSONDecodeError:
+        print("Error: config.json is not valid JSON. Using default configuration.")
+
+    # Example: Override a specific preprocessing default via env var
+    # config['preprocessing_options']['watermark_text'] = os.environ.get(
+    #     'BRANDKIT_WATERMARK_TEXT', config['preprocessing_options']['watermark_text']
+    # )
+    # Add more overrides here as needed
+
+    return config
+
+# --- End Configuration Loading ---
 
 # Ensure upload directory exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-# Load configuration
-def load_config():
-    try:
-        with open('config.json', 'r') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {
-            "formats": {
-                "website": {"width": 1200, "height": 630, "description": "Open Graph, Twitter Cards"},
-                "webapp": {"width": 512, "height": 512, "description": "Web App Manifest Icon"},
-                "mobile": {"width": 1080, "height": 1920, "description": "Mobile Screens"},
-                "social": {"width": 1080, "height": 1080, "description": "Social Media Posts"},
-                "favicon": {"width": 48, "height": 48, "description": "Browser Favicon (generates .ico)"}
-            },
-            "output_formats": ["png", "jpg", "webp", "ico"]
-        }
-    except json.JSONDecodeError:
-        print("Error: config.json is not valid JSON.")
-        return {"formats": {}, "output_formats": []}
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -400,7 +436,7 @@ def has_significant_white_area(image, threshold=0.15):
 @app.route('/')
 def index():
     config = load_config()
-    return render_template('index.html', config=config)
+    return render_template('index.html', config=config, max_upload_mb=app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024))
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -431,10 +467,10 @@ def upload_file():
                 'temperature': int(request.form.get('temperature', 0)),
                 'enhance_contrast': request.form.get('enhance_contrast') == 'true',
                 'apply_blur': request.form.get('apply_blur') == 'true',
-                'blur_radius': float(request.form.get('blur_radius', 2.0)),
+                'blur_radius': float(request.form.get('blur_radius', config.get('preprocessing_options', {}).get('blur_radius', 2.0))),
                 'add_watermark': request.form.get('add_watermark') == 'true',
-                'watermark_text': request.form.get('watermark_text', '© BrandKit'),
-                'watermark_opacity': float(request.form.get('watermark_opacity', 0.3))
+                'watermark_text': request.form.get('watermark_text', config.get('preprocessing_options', {}).get('watermark_text', '© BrandKit')),
+                'watermark_opacity': float(request.form.get('watermark_opacity', config.get('preprocessing_options', {}).get('watermark_opacity', 0.3)))
             }
             original_ext = file.filename.rsplit('.', 1)[1].lower()
             filename_without_ext = uuid.uuid4().hex
@@ -451,7 +487,6 @@ def upload_file():
                 prominent_color = (200, 200, 200)
                 has_white_area = False
                 white_area_ratio = 0.0
-            # ...existing code...
             results = generate_formats(
                 original_path,
                 filename_without_ext,
@@ -496,4 +531,5 @@ def download_zip(filename):
     return jsonify({'error': 'File not found'}), 404
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    is_debug = os.environ.get('FLASK_ENV') == 'development'
+    app.run(host='0.0.0.0', debug=is_debug)

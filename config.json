@@ -150,6 +150,10 @@
     "output_formats": ["png", "jpg", "webp", "ico"],
     "preprocessing_options": {
         "grayscale": false,
+        "bw": false,
+        "invert": false,
+        "hue_shift": 0,
+        "temperature": 0,
         "enhance_contrast": false,
         "apply_blur": false,
         "blur_radius": 2,
