@@ -22,7 +22,6 @@ except ValueError:
     max_upload_mb = DEFAULT_MAX_UPLOAD_MB
 app.config['MAX_CONTENT_LENGTH'] = max_upload_mb * 1024 * 1024
 
-# Default config structure if file is missing or invalid
 DEFAULT_CONFIG = {
     "formats": {
         "website": {"width": 1200, "height": 630, "description": "Open Graph, Twitter Cards"},
@@ -48,30 +47,28 @@ DEFAULT_CONFIG = {
     }
 }
 
-# Load configuration from file and apply environment overrides
 def load_config():
-    config = DEFAULT_CONFIG.copy() # Start with defaults
+    """Load configuration with proper deep merging of dictionaries"""
+    config = DEFAULT_CONFIG.copy()
     try:
         with open('config.json', 'r') as f:
             file_config = json.load(f)
-            # Merge file config into defaults (simple merge, not deep)
-            config.update(file_config)
+            # Deep merge the dictionaries
+            for key, value in file_config.items():
+                if key in config and isinstance(config[key], dict) and isinstance(value, dict):
+                    # Merge nested dictionaries
+                    config[key].update(value)
+                else:
+                    # Replace or add non-dict values
+                    config[key] = value
     except FileNotFoundError:
         print("Warning: config.json not found. Using default configuration.")
     except json.JSONDecodeError:
         print("Error: config.json is not valid JSON. Using default configuration.")
-
-    # Example: Override a specific preprocessing default via env var
-    # config['preprocessing_options']['watermark_text'] = os.environ.get(
-    #     'BRANDKIT_WATERMARK_TEXT', config['preprocessing_options']['watermark_text']
-    # )
-    # Add more overrides here as needed
-
     return config
 
 # --- End Configuration Loading ---
 
-# Ensure upload directory exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 def allowed_file(filename):
@@ -79,7 +76,6 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 def preprocess_image(image, options):
-    """Apply preprocessing options to the image"""
     if options.get('grayscale'):
         image = image.convert('L').convert('RGBA')
     if options.get('bw'):
@@ -142,11 +138,9 @@ def adjust_temperature(img, temp):
     return Image.fromarray(arr, 'RGBA')
 
 def darken_color(color, factor=0.7):
-    """Return a darker version of the color (factor < 1.0)."""
     return tuple(max(0, int(c * factor)) for c in color)
 
 def create_radial_gradient(size, center_color, edge_color):
-    """Create a radial gradient image from center_color to edge_color."""
     width, height = size
     gradient = Image.new('RGBA', (width, height), edge_color + (255,))
     cx, cy = width // 2, height // 2
@@ -196,148 +190,6 @@ def create_favicon(image, filename_without_ext):
         'path': output_path,
         'url': f"/{app.config['UPLOAD_FOLDER']}/{output_filename}"
     }
-
-def generate_formats(original_path, filename_without_ext, selected_formats, output_formats, preprocessing_options, variations_mode=False):
-    config = load_config()
-    all_available_formats = config['formats']
-    formats_to_generate = {k: v for k, v in all_available_formats.items() if k in selected_formats}
-    results = {}
-    try:
-        original = Image.open(original_path)
-    except Exception as e:
-        print(f"Error opening image: {e}")
-        raise ValueError("Could not open or process the uploaded image.")
-    # --- Intelligence: get prominent color and check if original is square ---
-    prominent_color = get_prominent_color(original)
-    is_square = original.width == original.height
-    if variations_mode:
-        results['variations'] = {}
-        variations_list = generate_variations()
-        for var in variations_list:
-            label = var['label']
-            opts = {**preprocessing_options, **var['opts']}
-            try:
-                processed_image = preprocess_image(original.copy(), opts)
-            except Exception as e:
-                print(f"Error preprocessing variation '{label}': {e}")
-                continue
-            results['variations'][label] = {}
-            for format_name, format_config in formats_to_generate.items():
-                dimensions = (format_config['width'], format_config['height'])
-                img_copy = processed_image.copy()
-                img_copy.thumbnail(dimensions, Image.LANCZOS)
-                # --- Intelligence: fill non-square background for square uploads ---
-                if is_square and dimensions[0] != dimensions[1]:
-                    # Create radial gradient background
-                    center_color = darken_color(prominent_color, 0.7)
-                    edge_color = prominent_color
-                    bg = create_radial_gradient(dimensions, center_color, edge_color)
-                    paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
-                    bg.paste(img_copy, paste_pos, img_copy)
-                    new_img = bg
-                else:
-                    new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
-                    paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
-                    if img_copy.mode == 'RGBA':
-                        new_img.paste(img_copy, paste_pos, img_copy)
-                    else:
-                        new_img.paste(img_copy, paste_pos)
-                format_results = {}
-                for output_format in output_formats:
-                    output_format_lower = output_format.lower()
-                    if output_format_lower == 'ico' and format_name != 'favicon':
-                        continue
-                    output_filename = f"{filename_without_ext}_{label}_{format_name}.{output_format_lower}"
-                    output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-                    try:
-                        if output_format_lower in ['jpg', 'jpeg']:
-                            save_img = new_img.convert('RGB')
-                            save_img.save(output_path, quality=95)
-                        elif output_format_lower == 'webp':
-                            save_img = new_img
-                            save_img.save(output_path, quality=95, lossless=False)
-                        else:
-                            new_img.save(output_path)
-                        format_results[output_format] = {
-                            'path': output_path,
-                            'url': f"/{app.config['UPLOAD_FOLDER']}/{output_filename}",
-                        }
-                    except Exception as e:
-                        print(f"Error saving variation {label}/{format_name} as {output_format}: {e}")
-                if format_results:
-                    results['variations'][label][format_name] = {
-                        'outputs': format_results,
-                        'dimensions': dimensions,
-                        'description': format_config.get('description', '')
-                    }
-        if 'favicon' in selected_formats and 'ico' in output_formats:
-            try:
-                base_processed_image = preprocess_image(original.copy(), preprocessing_options)
-                results['favicon_ico'] = create_favicon(base_processed_image, filename_without_ext)
-            except Exception as e:
-                print(f"Error creating main favicon: {e}")
-        return results
-    try:
-        processed_image = preprocess_image(original.copy(), preprocessing_options)
-    except Exception as e:
-        print(f"Error during initial preprocessing: {e}")
-        raise ValueError("Could not preprocess the image with selected options.")
-    if 'favicon' in selected_formats and 'ico' in output_formats:
-        try:
-            results['favicon_ico'] = create_favicon(processed_image.copy(), filename_without_ext)
-        except Exception as e:
-            print(f"Error creating favicon: {e}")
-    for format_name, format_config in formats_to_generate.items():
-        if format_name == 'favicon' and 'favicon_ico' in results:
-            continue
-        dimensions = (format_config['width'], format_config['height'])
-        img_copy = processed_image.copy()
-        img_copy.thumbnail(dimensions, Image.LANCZOS)
-        # --- Intelligence: fill non-square background for square uploads ---
-        if is_square and dimensions[0] != dimensions[1]:
-            # Create radial gradient background
-            center_color = darken_color(prominent_color, 0.7)
-            edge_color = prominent_color
-            bg = create_radial_gradient(dimensions, center_color, edge_color)
-            paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
-            bg.paste(img_copy, paste_pos, img_copy)
-            new_img = bg
-        else:
-            new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
-            paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
-            if img_copy.mode == 'RGBA':
-                new_img.paste(img_copy, paste_pos, img_copy)
-            else:
-                new_img.paste(img_copy, paste_pos)
-        format_results = {}
-        for output_format in output_formats:
-            output_format_lower = output_format.lower()
-            if output_format_lower == 'ico' and format_name != 'favicon':
-                continue
-            output_filename = f"{filename_without_ext}_{format_name}.{output_format_lower}"
-            output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-            try:
-                if output_format_lower in ['jpg', 'jpeg']:
-                    save_img = new_img.convert('RGB')
-                    save_img.save(output_path, quality=95)
-                elif output_format_lower == 'webp':
-                    save_img = new_img
-                    save_img.save(output_path, quality=95, lossless=False)
-                else:
-                    new_img.save(output_path)
-                format_results[output_format] = {
-                    'path': output_path,
-                    'url': f"/{app.config['UPLOAD_FOLDER']}/{output_filename}",
-                }
-            except Exception as e:
-                print(f"Error saving {format_name} as {output_format}: {e}")
-        if format_results:
-            results[format_name] = {
-                'outputs': format_results,
-                'dimensions': dimensions,
-                'description': format_config.get('description', '')
-            }
-    return results
 
 def create_zip_file(results, filename_prefix):
     temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
@@ -404,30 +256,23 @@ def create_zip_file(results, filename_prefix):
     }
 
 def get_prominent_color(image, exclude_white=True):
-    """Extract the most prominent color from the image, optionally ignoring white/near-white pixels."""
-    img = image.convert('RGBA').resize((64, 64))  # Downsize for speed
+    img = image.convert('RGBA').resize((64, 64))
     arr = np.array(img)
     pixels = arr.reshape(-1, 4)
-    # Remove fully transparent pixels
-    pixels = pixels[pixels[:, 3] > 0]
+    pixels = pixels[pixels[:, 3] > 0]  # Filter out fully transparent pixels
     if exclude_white:
-        # Remove near-white pixels
-        pixels = pixels[(pixels[:, 0:3] < 245).any(axis=1)]
+        pixels = pixels[(pixels[:, 0:3] < 245).any(axis=1)]  # Filter out white pixels
     if len(pixels) == 0:
-        return (200, 200, 200)  # fallback gray
-    # Find most common color
+        return (200, 200, 200)  # Default color if no valid pixels
     colors, counts = np.unique(pixels[:, :3], axis=0, return_counts=True)
     prominent = colors[counts.argmax()]
     return tuple(int(x) for x in prominent)
 
 def has_significant_white_area(image, threshold=0.15):
-    """Detect if the image has a significant white or transparent area (default: >15%)."""
     img = image.convert('RGBA')
     arr = np.array(img)
     total = arr.shape[0] * arr.shape[1]
-    # White: all RGB > 245, alpha > 200
     white = ((arr[..., :3] > 245).all(axis=-1)) & (arr[..., 3] > 200)
-    # Transparent: alpha < 32
     transparent = arr[..., 3] < 32
     white_or_transparent = white | transparent
     ratio = np.sum(white_or_transparent) / total
@@ -437,6 +282,40 @@ def has_significant_white_area(image, threshold=0.15):
 def index():
     config = load_config()
     return render_template('index.html', config=config, max_upload_mb=app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024))
+
+@app.route('/analyze', methods=['POST'])
+def analyze_image_endpoint():
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file part'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No selected file'}), 400
+    if file and allowed_file(file.filename):
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as temp_file:
+                file.save(temp_file.name)
+                temp_file_path = temp_file.name
+            try:
+                img_for_analysis = Image.open(temp_file_path)
+                prominent_color = get_prominent_color(img_for_analysis)
+                has_white_area, white_area_ratio = has_significant_white_area(img_for_analysis)
+                analysis_results = {
+                    'prominent_color': tuple(int(x) for x in prominent_color),
+                    'has_white_area': bool(has_white_area),
+                    'white_area_ratio': float(white_area_ratio)
+                }
+                return jsonify({'success': True, 'analysis': analysis_results})
+            except Exception as e:
+                print(f"Image analysis failed: {e}")
+                return jsonify({'success': False, 'error': 'Failed to analyze image.'}), 500
+            finally:
+                if temp_file_path and os.path.exists(temp_file_path):
+                    os.unlink(temp_file_path)
+        except Exception as e:
+            print(f"Error handling analysis request: {e}")
+            return jsonify({'success': False, 'error': 'Server error during analysis.'}), 500
+    else:
+        return jsonify({'success': False, 'error': 'File type not allowed'}), 400
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -450,15 +329,26 @@ def upload_file():
             selected_formats = request.form.getlist('selected_formats')
             output_formats = request.form.getlist('output_formats')
             variations_mode = request.form.get('variations_mode') == 'true'
+            fill_white_with_prominent = request.form.get('fill_white_with_prominent') == 'true'
+            
+            # Load configuration
             config = load_config()
+            
+            # Default to all formats if none selected
             if not selected_formats:
                 selected_formats = list(config['formats'].keys())
+            
+            # Default to PNG if no output format selected
             if not output_formats:
                 output_formats = ['png']
+                
+            # Remove ICO if favicon not selected
             if 'ico' in output_formats and 'favicon' not in selected_formats:
                 output_formats.remove('ico')
                 if not output_formats:
                     output_formats.append('png')
+                    
+            # Get preprocessing options from form
             preprocessing_options = {
                 'grayscale': request.form.get('grayscale') == 'true',
                 'bw': request.form.get('bw') == 'true',
@@ -472,47 +362,60 @@ def upload_file():
                 'watermark_text': request.form.get('watermark_text', config.get('preprocessing_options', {}).get('watermark_text', '© BrandKit')),
                 'watermark_opacity': float(request.form.get('watermark_opacity', config.get('preprocessing_options', {}).get('watermark_opacity', 0.3)))
             }
-            original_ext = file.filename.rsplit('.', 1)[1].lower()
+            
+            # Generate unique filename
+            original_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'png'
             filename_without_ext = uuid.uuid4().hex
             unique_filename = f"{filename_without_ext}.{original_ext}"
             original_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
             file.save(original_path)
-            # --- Intelligence: analyze image ---
+            
+            # Analyze the image for smart background fill feature
             try:
                 img_for_analysis = Image.open(original_path)
                 prominent_color = get_prominent_color(img_for_analysis)
                 has_white_area, white_area_ratio = has_significant_white_area(img_for_analysis)
+                analysis_results = {
+                    'prominent_color': prominent_color,
+                    'has_white_area': has_white_area,
+                    'white_area_ratio': white_area_ratio
+                }
             except Exception as e:
                 print(f"Image analysis failed: {e}")
-                prominent_color = (200, 200, 200)
-                has_white_area = False
-                white_area_ratio = 0.0
+                analysis_results = None
+                
+            # Generate formatted images
             results = generate_formats(
                 original_path,
                 filename_without_ext,
                 selected_formats,
                 output_formats,
                 preprocessing_options,
-                variations_mode=variations_mode
+                variations_mode=variations_mode,
+                fill_white_with_prominent=fill_white_with_prominent
             )
+            
+            # Add original to results
             results['original'] = {
                 'path': original_path,
                 'url': f"/{app.config['UPLOAD_FOLDER']}/{unique_filename}"
             }
+            
+            # Add analysis results
+            if analysis_results:
+                results['analysis'] = analysis_results
+                
+            # Create and add zip file
             zip_info = create_zip_file(results, filename_without_ext)
             if zip_info:
                 results['zip'] = zip_info
-            # --- Add intelligence info to response ---
-            results['analysis'] = {
-                'prominent_color': tuple(int(x) for x in prominent_color),
-                'has_white_area': bool(has_white_area),
-                'white_area_ratio': float(white_area_ratio)
-            }
+                
             return jsonify({
                 'success': True,
                 'message': 'File processed successfully',
                 'results': results
             })
+            
         except ValueError as ve:
             print(f"Value Error during processing: {ve}")
             return jsonify({'error': str(ve)}), 400
@@ -532,4 +435,4 @@ def download_zip(filename):
 
 if __name__ == '__main__':
     is_debug = os.environ.get('FLASK_ENV') == 'development'
-    app.run(host='0.0.0.0', debug=is_debug)
+    app.run(host='0.0.0.0', port='8000', debug=is_debug)

@@ -124,6 +124,24 @@
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- Smart Fill Option (Conditional) -->
+                                <div x-show="analysis && analysis.has_white_area" class="bg-blue-50 p-4 rounded-lg border border-blue-200 shadow-sm">
+                                    <label class="flex items-center justify-between cursor-pointer">
+                                        <span class="text-lg font-medium text-gray-700 flex items-center">
+                                            <svg class="w-5 h-5 mr-2 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"> <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 15l-.813.904L9.813 15.904zm-2.05-2.05L9 14.71l.86-.858L7.763 13.854zm1.39 1.39L9 15.29l.847.847L9.153 15.244zM21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 7.5a7.5 7.5 0 100-15 7.5 7.5 0 000 15z" /> </svg>
+                                            Smart Background Fill?
+                                        </span>
+                                        <div class="relative">
+                                            <input type="checkbox" x-model="fill_white_with_prominent" class="sr-only toggle-checkbox">
+                                            <div class="block bg-gray-300 w-10 h-6 rounded-full"></div>
+                                            <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform" :class="{ 'translate-x-full bg-blue-500': fill_white_with_prominent }"></div>
+                                        </div>
+                                    </label>
+                                    <p class="text-xs text-gray-500 mt-1 pl-7">Fills transparent/white areas with a gradient based on the image's main color when resizing to non-square formats.</p>
+                                    <p class="text-xs text-blue-600 mt-1 pl-7" x-text="`Detected ~${(analysis.white_area_ratio * 100).toFixed(0)}% white/transparent area.`"></p>
+                                </div>
+
                                 <!-- Variations Mode Card -->
                                 <div class="bg-gray-50 p-4 rounded-lg border shadow-sm">
                                     <label class="flex items-center justify-between cursor-pointer">
@@ -328,77 +346,8 @@
                              <template x-for="(formatData, formatName) in results" :key="formatName">
                                  <div x-show="!['original', 'zip', 'variations', 'favicon_ico', 'analysis'].includes(formatName)" class="bg-gray-50 rounded-lg p-3 border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center">
                                      <div class="mb-2 sm:mb-0 mr-2">
-                                         <h4 class="text-sm font-semibold text-gray-700 mb-0.5 capitalize" x-text="formatName.replace(/_/g, ' ')"></h4>
-                                         <p class="text-xs text-gray-500" x-text="formatData.description"></p>
-                                     </div>
-                                     <!-- Dimensions and Download Buttons -->
-                                     <div class="flex flex-wrap items-center gap-2 shrink-0">
-                                         <span class="text-xs px-2 py-1 rounded bg-gray-200 text-gray-700 whitespace-nowrap" x-text="`(${formatData.dimensions[0]}x${formatData.dimensions[1]})`"></span>
-                                         <template x-for="(outputData, outputFormat) in formatData.outputs" :key="outputFormat">
-                                             <a :href="outputData.url" download :download="`${formatName}.${outputFormat}`"
-                                                class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 whitespace-nowrap">
-                                                Download .<span x-text="outputFormat"></span>
-                                             </a>
-                                         </template>
-                                     </div>
-                                 </div>
-                             </template>
-                         </div>
-                    </div>
-                </div>
-            </section>
-        </main>
-
-        <!-- Footer -->
-        <footer class="mt-12 text-center text-gray-500 text-sm">
-            <p>© <span x-text="new Date().getFullYear()"></span> Brand Kit Generator. Powered by Flask & Alpine.js.</p>
-        </footer>
-    </div>
-
-    <script>
-        function appData() {
-            const initialConfig = {{ config | tojson }};
-            const defaultFormats = ['square_1024'];
-            const defaultOutputFormats = ['png', 'ico'];
-
-            // --- Helper function to group formats ---
-            function groupFormats(formats, categories) {
-                const grouped = {};
-                const ungrouped = [];
-                const allCategorized = new Set();
-
-                if (categories) {
-                    for (const categoryName in categories) {
-                        grouped[categoryName] = [];
-                        categories[categoryName].forEach(formatKey => {
-                            if (formats && formats[formatKey]) {
-                                grouped[categoryName].push(formatKey);
-                                allCategorized.add(formatKey);
-                            }
-                        });
-                        // Remove empty categories
-                        if (grouped[categoryName].length === 0) {
-                            delete grouped[categoryName];
-                        }
-                    }
-                }
-
-                if (formats) {
-                    for (const formatKey in formats) {
-                        if (!allCategorized.has(formatKey)) {
-                            ungrouped.push(formatKey);
-                        }
-                    }
-                }
-                return { grouped, ungrouped };
-            }
-            // --- End Helper ---
-
-            const formatGroups = groupFormats(initialConfig.formats, initialConfig.format_categories);
-
             return {
                 config: initialConfig,
-                max_upload_mb: {{ max_upload_mb }},
                 file: null,
                 preview: null,
                 isDragging: false,
@@ -406,57 +355,67 @@
                 isComplete: false,
                 error: null,
                 results: null,
-                analysis: null,
-                // --- File Info ---
-                fileInfo: {
-                    name: null,
-                    type: null,
-                    size: null,
-                    dimensions: null,
-                },
-                // --- Grouped Formats ---
-                groupedFormats: formatGroups.grouped,
-                ungroupedFormats: formatGroups.ungrouped,
+                // --- Intelligence ---
+                analysis: null, // Holds prominent color/white area info
+                fill_white_with_prominent: false, // User option
+                // --- End Intelligence ---
                 // --- Options ---
-                options: { ...initialConfig.preprocessing_options },
-                selected_formats: [...defaultFormats],
-                output_formats: [...defaultOutputFormats],
+                options: {
+                    grayscale: false,
+                    bw: false,
+                    invert: false,
+                    hue_shift: 0,
+                    temperature: 0,
+                    enhance_contrast: false,
+                    apply_blur: false,
+                    blur_radius: 2.0,
+                    add_watermark: false,
+                    watermark_text: '© BrandKit',
+                    watermark_opacity: 0.3,
+                },
+                selected_formats: [...defaultFormats], // Default select all formats
+                output_formats: [...defaultOutputFormats], // Default select common formats
                 variations_mode: false,
+                // --- End Options ---
 
                 init() {
-                    this.options = { ...this.config.preprocessing_options };
-                    this.manageIcoOutputOption(this.selected_formats);
-                    this.$watch('selected_formats', (newFormats) => this.manageIcoOutputOption(newFormats));
-                    this.$watch('output_formats', (newOutputs) => this.preventIcoWithoutFavicon(newOutputs));
-                },
-
-                manageIcoOutputOption(selectedFormats) {
-                    const icoIndex = this.output_formats.indexOf('ico');
-                    const icoAvailable = this.config.output_formats.includes('ico');
-                    if (selectedFormats.includes('favicon')) {
-                        if (icoIndex === -1 && icoAvailable) {
+                    // Add 'ico' to output formats if 'favicon' is initially selected
+                    if (this.selected_formats.includes('favicon')) {
+                        if (!this.output_formats.includes('ico')) {
                             this.output_formats.push('ico');
                         }
-                    } else {
-                        if (icoIndex !== -1) {
-                            this.output_formats.splice(icoIndex, 1);
-                        }
                     }
-                },
-
-                preventIcoWithoutFavicon(newOutputs) {
-                     if (newOutputs.includes('ico') && !this.selected_formats.includes('favicon')) {
-                         const icoIndex = this.output_formats.indexOf('ico');
-                         if (icoIndex !== -1) {
-                             this.output_formats.splice(icoIndex, 1);
-                             console.warn("ICO output format automatically deselected because Favicon format is not chosen.");
+                    // Watch for changes in selected_formats to manage 'ico' output option
+                    this.$watch('selected_formats', (newFormats) => {
+                        const icoIndex = this.output_formats.indexOf('ico');
+                        if (newFormats.includes('favicon')) {
+                            // If favicon is selected, ensure ico is an option (if available in config)
+                            if (icoIndex === -1 && this.config.output_formats.includes('ico')) {
+                                this.output_formats.push('ico');
+                            }
+                        } else {
+                            // If favicon is deselected, remove ico from selected outputs
+                            if (icoIndex !== -1) {
+                                this.output_formats.splice(icoIndex, 1);
+                            }
+                        }
+                    });
+                     // Watch output formats to ensure ico isn't selected without favicon
+                     this.$watch('output_formats', (newOutputs) => {
+                         if (newOutputs.includes('ico') && !this.selected_formats.includes('favicon')) {
+                             const icoIndex = this.output_formats.indexOf('ico');
+                             if (icoIndex !== -1) {
+                                 // This case should be prevented by disabling the checkbox, but as a fallback:
+                                 this.output_formats.splice(icoIndex, 1);
+                                 console.warn("ICO output format automatically deselected because Favicon format is not chosen.");
+                             }
                          }
-                     }
+                     });
                 },
 
                 handleDrop(e) {
                     this.isDragging = false;
-                    this.error = null;
+                    this.error = null; // Clear previous error
                     const droppedFiles = e.dataTransfer.files;
                     if (droppedFiles.length > 0) {
                         this.handleFile(droppedFiles[0]);
@@ -464,33 +423,27 @@
                 },
 
                 handleFileInput(e) {
-                    this.error = null;
+                     this.error = null; // Clear previous error
                     const files = e.target.files;
                     if (files.length > 0) {
                         this.handleFile(files[0]);
                     }
                 },
 
-                handleFile(fileToHandle) {
+                handleFile(file) {
                     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-                    if (!validTypes.includes(fileToHandle.type)) {
+                    if (!validTypes.includes(file.type)) {
                         this.error = 'Invalid file type. Please use JPG, PNG, GIF, or WEBP.';
                         this.resetFileInput();
                         return;
                     }
-                    const maxSize = this.max_upload_mb * 1024 * 1024;
-                    if (fileToHandle.size > maxSize) {
-                         this.error = `File is too large (Max ${this.max_upload_mb}MB).`;
+                    if (file.size > 16 * 1024 * 1024) { // 16MB
+                         this.error = 'File is too large (Max 16MB).';
                          this.resetFileInput();
                         return;
                     }
-                    this.file = fileToHandle;
-                    this.fileInfo.name = fileToHandle.name;
-                    this.fileInfo.type = fileToHandle.type.split('/')[1] || 'unknown';
-                    this.fileInfo.size = (fileToHandle.size / 1024 / 1024).toFixed(2) + ' MB';
-                    this.fileInfo.dimensions = null;
-
-                    this.createPreview(fileToHandle);
+                    this.file = file;
+                    this.createPreview(file);
                 },
 
                 createPreview(file) {
@@ -500,16 +453,9 @@
                     reader.readAsDataURL(file);
                 },
 
-                getImageDimensions() {
-                    if (this.$refs.previewImg) {
-                        this.fileInfo.dimensions = `${this.$refs.previewImg.naturalWidth}x${this.$refs.previewImg.naturalHeight}`;
-                    }
-                },
-
                  resetFileInput() {
                     this.file = null;
                     this.preview = null;
-                    this.fileInfo = { name: null, type: null, size: null, dimensions: null };
                     if (this.$refs.fileInput) {
                         this.$refs.fileInput.value = '';
                     }
@@ -521,11 +467,13 @@
                     this.isComplete = false;
                     this.error = null;
                     this.results = null;
-                    this.analysis = null;
-                    this.options = { ...this.config.preprocessing_options };
+                    // Reset options to defaults
+                    this.options = { grayscale: false, bw: false, invert: false, hue_shift: 0, temperature: 0, enhance_contrast: false, apply_blur: false, blur_radius: 2.0, add_watermark: false, watermark_text: '© BrandKit', watermark_opacity: 0.3 };
                     this.selected_formats = [...defaultFormats];
                     this.output_formats = [...defaultOutputFormats];
-                    this.manageIcoOutputOption(this.selected_formats);
+                     if (this.selected_formats.includes('favicon') && !this.output_formats.includes('ico') && this.config.output_formats.includes('ico')) {
+                         this.output_formats.push('ico');
+                     }
                     this.variations_mode = false;
                 },
 
@@ -541,21 +489,27 @@
                     if (!this.file || this.selected_formats.length === 0 || this.output_formats.length === 0) return;
 
                     this.isProcessing = true;
-                    this.isComplete = false;
-                    this.error = null;
-                    this.results = null;
+                    this.isComplete = false; // Ensure results aren't shown during processing
+                    this.error = null; // Clear previous errors
+                    this.results = null; // Clear previous results
 
                     const formData = new FormData();
                     formData.append('file', this.file);
 
+                    // Append options
                     Object.entries(this.options).forEach(([key, value]) => {
                         formData.append(key, value);
                     });
 
+                    // Append selected formats and output formats
                     this.selected_formats.forEach(format => formData.append('selected_formats', format));
                     this.output_formats.forEach(format => formData.append('output_formats', format));
 
+                    // Append variations mode
                     formData.append('variations_mode', this.variations_mode);
+
+                    // --- Intelligence: add fill_white_with_prominent to upload ---
+                    formData.append('fill_white_with_prominent', this.fill_white_with_prominent);
 
                     fetch('/upload', {
                         method: 'POST',
@@ -563,9 +517,11 @@
                     })
                     .then(response => {
                         if (!response.ok) {
+                            // Try to parse error JSON from backend
                             return response.json().then(errData => {
                                 throw new Error(errData.error || `HTTP error ${response.status}`);
                             }).catch(() => {
+                                // Fallback if error JSON parsing fails
                                 throw new Error(`HTTP error ${response.status}`);
                             });
                         }
@@ -574,17 +530,19 @@
                     .then(data => {
                         if (data.success) {
                             this.results = data.results;
+                            // --- Intelligence: store analysis ---
                             this.analysis = data.results.analysis || null;
                             this.isComplete = true;
                         } else {
+                            // This case might not be reached if using the !response.ok check above
                             this.error = data.error || 'An unknown error occurred during processing.';
-                            this.isComplete = true;
+                            this.isComplete = true; // Mark as complete even with error to show message
                         }
                     })
                     .catch(error => {
                         console.error('Upload Error:', error);
                         this.error = error.message || 'Network error or server issue. Please try again.';
-                        this.isComplete = true;
+                        this.isComplete = true; // Mark as complete to show the error message
                     })
                     .finally(() => {
                          this.isProcessing = false;
@@ -595,3 +553,4 @@
     </script>
 </body>
 </html>
+``` 

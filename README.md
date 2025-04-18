@@ -122,23 +122,108 @@ templates/index.html  # Main UI
 
 ---
 
+## Deployment & Security
+
+For exposing the Brand Kit Generator to the internet securely, it's recommended to use a reverse proxy for SSL offloading and potentially a secure tunnel like Cloudflared for Zero Trust access control.
+
+### Reverse Proxy (SSL Offloading)
+
+Running the Flask development server directly exposed is not recommended for production. Use a reverse proxy like Nginx or Caddy to handle HTTPS/SSL termination.
+
+**Using Docker Compose:**
+
+You can integrate Caddy or Nginx into your `docker-compose.yml`.
+
+**Example with Caddy:**
+
+```yaml
+# docker-compose.yml (partial)
+services:
+  brandkit:
+    # ... your brandkit service definition ...
+    # Ensure it exposes the port (e.g., 5000) internally
+    # networks:
+    #   - webproxy
+
+  caddy:
+    image: caddy:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile # Mount your Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    # networks:
+    #   - webproxy
+
+# networks:
+#   webproxy:
+#     external: true # Or define it here
+
+volumes:
+  caddy_data:
+  caddy_config:
+```
+
+**Example Caddyfile:**
+
+```caddy
+# Caddyfile
+your-domain.com {
+    # Automatic HTTPS via Let's Encrypt
+    reverse_proxy brandkit:5000 # Proxy requests to the brandkit service on port 5000
+}
+```
+
+Refer to the [Caddy Docker documentation](https://hub.docker.com/_/caddy) or [Nginx Proxy Manager](https://nginxproxymanager.com/) for more detailed setup instructions.
+
+### Secure Tunneling (Cloudflared)
+
+To securely expose your Brand Kit Generator without opening firewall ports and add Zero Trust authentication (like Google Workspace or specific email access), you can use Cloudflare Tunnel (cloudflared).
+
+**Using Docker:**
+
+1.  **Set up a Cloudflare Tunnel:** Follow the [Cloudflare Tunnel documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation/) to create a tunnel and get your tunnel token.
+2.  **Run Cloudflared Container:** Add `cloudflared` to your `docker-compose.yml`.
+
+```yaml
+# docker-compose.yml (partial)
+services:
+  brandkit:
+    # ... your brandkit service definition ...
+    # No need to expose ports externally if only using the tunnel
+    # networks:
+    #   - internal_network
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token YOUR_TUNNEL_TOKEN # Replace with your token
+    # networks:
+    #   - internal_network
+
+# networks:
+#   internal_network:
+```
+
+3.  **Configure DNS:** In your Cloudflare dashboard, point a CNAME record (e.g., `brandkit.your-domain.com`) to your tunnel's UUID `.cfargotunnel.com` address.
+4.  **Set up Access Policy:**
+    *   Go to Cloudflare Zero Trust dashboard -> Access -> Applications.
+    *   Add a "Self-hosted" application.
+    *   Configure the subdomain (e.g., `brandkit.your-domain.com`).
+    *   Set the "Identity providers" (e.g., enable Google and configure allowed accounts/groups, or set up email authentication).
+    *   Create an "Allow" policy, defining who can access (e.g., emails ending in `@yourcompany.com`, specific Gmail addresses, etc.).
+
+This setup ensures only authenticated users can reach your Brand Kit Generator instance through Cloudflare's network.
+
+---
+
 ## Troubleshooting
 - If you get permission errors on uploads, ensure `static/uploads` is writable.
 - For custom domains/SSL, use a reverse proxy (e.g., Nginx, Caddy).
 - For development, set `FLASK_ENV=development` in docker-compose or your shell.
-
----
-
-## License
-MIT
-
----
-
-## Credits
-- [Flask](https://flask.palletsprojects.com/)
-- [Pillow](https://python-pillow.org/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Alpine.js](https://alpinejs.dev/)
 
 ---
 
@@ -151,3 +236,13 @@ MIT
 ## Feedback & Contributions
 
 PRs and issues welcome! For feature requests or bug reports, please open an issue.
+
+---
+
+<p align="center">
+  <a href="https://github.com/fabriziosalmi/brandkit" target="_blank" rel="noopener noreferrer" title="View on GitHub">
+    <svg width="32" height="32" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.036 1.531 1.036.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.026 2.747-1.026.546 1.379.201 2.397.098 2.65.64.7 1.028 1.595 1.028 2.688 0 3.848-2.338 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd" />
+    </svg>
+  </a>
+</p>

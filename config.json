@@ -145,7 +145,8 @@
         "Web Application": ["webapp", "favicon", "square_logo_small", "square_logo_large", "rectangle_logo_small", "rectangle_logo_large"],
         "Website": ["website", "hero_mobile", "hero_desktop", "website_banner_mobile", "website_banner_desktop", "background_mobile", "background_desktop", "lightbox_mobile", "lightbox_desktop", "blog_post_mobile", "blog_post_desktop"],
         "Social Media": ["social", "twitter", "instagram", "linkedin", "facebook", "social_icon_small", "social_icon_large"],
-        "Mobile": ["mobile", "thumbnail_small", "thumbnail_large"]
+        "Mobile": ["mobile", "thumbnail_small", "thumbnail_large"],
+        "General Purpose": ["square_1024"]
     },
     "output_formats": ["png", "jpg", "webp", "ico"],
     "preprocessing_options": {
