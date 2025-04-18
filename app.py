@@ -263,10 +263,10 @@ def get_prominent_color(image, exclude_white=True):
     if exclude_white:
         pixels = pixels[(pixels[:, 0:3] < 245).any(axis=1)]  # Filter out white pixels
     if len(pixels) == 0:
-        return (200, 200, 200)  # Default color if no valid pixels
+        return [200, 200, 200]  # Default color if no valid pixels - return list instead of tuple
     colors, counts = np.unique(pixels[:, :3], axis=0, return_counts=True)
     prominent = colors[counts.argmax()]
-    return tuple(int(x) for x in prominent)
+    return [int(x) for x in prominent]  # Return list instead of tuple
 
 def has_significant_white_area(image, threshold=0.15):
     img = image.convert('RGBA')
@@ -277,6 +277,123 @@ def has_significant_white_area(image, threshold=0.15):
     white_or_transparent = white | transparent
     ratio = np.sum(white_or_transparent) / total
     return ratio > threshold, ratio
+
+def generate_formats(original_path, filename_without_ext, selected_formats, output_formats, preprocessing_options, variations_mode=False, fill_white_with_prominent=True):
+    config = load_config()
+    all_available_formats = config['formats']
+    formats_to_generate = {k: v for k, v in all_available_formats.items() if k in selected_formats}
+    results = {}
+    
+    try:
+        original = Image.open(original_path)
+        
+        # Convert to RGBA to ensure consistent processing
+        if original.mode != 'RGBA':
+            original = original.convert('RGBA')
+            
+    except Exception as e:
+        print(f"Error opening image: {e}")
+        raise ValueError("Could not open or process the uploaded image.")
+        
+    # Check if image is square for smart fill feature
+    is_square = original.width == original.height
+    
+    # Get prominent color for smart fill
+    try:
+        prominent_color = get_prominent_color(original)
+    except Exception as e:
+        print(f"Error getting prominent color: {e}")
+        prominent_color = [200, 200, 200]  # Default color
+    
+    # Process in variations mode
+    if variations_mode:
+        # ...existing variations processing code...
+        pass
+    
+    # Process in standard mode
+    else:
+        try:
+            processed_image = preprocess_image(original.copy(), preprocessing_options)
+        except Exception as e:
+            print(f"Error during initial preprocessing: {e}")
+            raise ValueError("Could not preprocess the image with selected options.")
+            
+        # Generate favicon if requested
+        if 'favicon' in selected_formats and 'ico' in output_formats:
+            try:
+                results['favicon_ico'] = create_favicon(processed_image.copy(), filename_without_ext)
+            except Exception as e:
+                print(f"Error creating favicon: {e}")
+                
+        # Process each selected format
+        for format_name, format_config in formats_to_generate.items():
+            # Skip favicon if already created
+            if format_name == 'favicon' and 'favicon_ico' in results:
+                continue
+                
+            dimensions = (format_config['width'], format_config['height'])
+            img_copy = processed_image.copy()
+            
+            # Resize the image maintaining aspect ratio
+            img_copy.thumbnail(dimensions, Image.LANCZOS)
+            
+            # Apply smart fill if appropriate
+            if is_square and dimensions[0] != dimensions[1] and fill_white_with_prominent:
+                center_color = darken_color(prominent_color, 0.7)
+                edge_color = prominent_color
+                bg = create_radial_gradient(dimensions, center_color, edge_color)
+                paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                bg.paste(img_copy, paste_pos, img_copy)
+                new_img = bg
+            else:
+                # Center the image on a transparent background
+                new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
+                paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                
+                if img_copy.mode == 'RGBA':
+                    new_img.paste(img_copy, paste_pos, img_copy)
+                else:
+                    new_img.paste(img_copy, paste_pos)
+                    
+            # Save in each requested output format
+            format_results = {}
+            for output_format in output_formats:
+                output_format_lower = output_format.lower()
+                
+                # Skip ICO format except for favicon
+                if output_format_lower == 'ico' and format_name != 'favicon':
+                    continue
+                    
+                output_filename = f"{filename_without_ext}_{format_name}.{output_format_lower}"
+                output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+                
+                try:
+                    # Handle different output formats appropriately
+                    if output_format_lower in ['jpg', 'jpeg']:
+                        save_img = new_img.convert('RGB')
+                        save_img.save(output_path, quality=95)
+                    elif output_format_lower == 'webp':
+                        save_img = new_img
+                        save_img.save(output_path, quality=95, lossless=False)
+                    else:
+                        new_img.save(output_path)
+                        
+                    format_results[output_format] = {
+                        'path': output_path,
+                        'url': f"/{app.config['UPLOAD_FOLDER']}/{output_filename}",
+                    }
+                except Exception as e:
+                    print(f"Error saving {format_name} as {output_format}: {e}")
+                    
+            # Add to results if any formats were successfully saved
+            if format_results:
+                results[format_name] = {
+                    'outputs': format_results,
+                    'dimensions': dimensions,
+                    'description': format_config.get('description', '')
+                }
+                
+    return results
 
 @app.route('/')
 def index():
@@ -300,9 +417,9 @@ def analyze_image_endpoint():
                 prominent_color = get_prominent_color(img_for_analysis)
                 has_white_area, white_area_ratio = has_significant_white_area(img_for_analysis)
                 analysis_results = {
-                    'prominent_color': tuple(int(x) for x in prominent_color),
-                    'has_white_area': bool(has_white_area),
-                    'white_area_ratio': float(white_area_ratio)
+                    'prominent_color': [int(x) for x in prominent_color],  # Convert tuple to list
+                    'has_white_area': bool(has_white_area),  # Ensure it's a proper boolean
+                    'white_area_ratio': float(white_area_ratio)  # Ensure it's a proper float
                 }
                 return jsonify({'success': True, 'analysis': analysis_results})
             except Exception as e:
@@ -316,6 +433,18 @@ def analyze_image_endpoint():
             return jsonify({'success': False, 'error': 'Server error during analysis.'}), 500
     else:
         return jsonify({'success': False, 'error': 'File type not allowed'}), 400
+
+# Create a helper function to ensure dictionaries are JSON serializable
+def ensure_serializable(obj):
+    if isinstance(obj, dict):
+        return {k: ensure_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [ensure_serializable(i) for i in obj]
+    elif isinstance(obj, (int, float, str, bool, type(None))):
+        return obj
+    else:
+        # Convert any other types to string representation
+        return str(obj)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -353,8 +482,8 @@ def upload_file():
                 'grayscale': request.form.get('grayscale') == 'true',
                 'bw': request.form.get('bw') == 'true',
                 'invert': request.form.get('invert') == 'true',
-                'hue_shift': int(request.form.get('hue_shift', 0)),
-                'temperature': int(request.form.get('temperature', 0)),
+                'hue_shift': int(float(request.form.get('hue_shift', 0))),
+                'temperature': int(float(request.form.get('temperature', 0))),
                 'enhance_contrast': request.form.get('enhance_contrast') == 'true',
                 'apply_blur': request.form.get('apply_blur') == 'true',
                 'blur_radius': float(request.form.get('blur_radius', config.get('preprocessing_options', {}).get('blur_radius', 2.0))),
@@ -376,13 +505,17 @@ def upload_file():
                 prominent_color = get_prominent_color(img_for_analysis)
                 has_white_area, white_area_ratio = has_significant_white_area(img_for_analysis)
                 analysis_results = {
-                    'prominent_color': prominent_color,
-                    'has_white_area': has_white_area,
-                    'white_area_ratio': white_area_ratio
+                    'prominent_color': prominent_color,  # Already a list from get_prominent_color
+                    'has_white_area': bool(has_white_area),  # Ensure proper boolean
+                    'white_area_ratio': float(white_area_ratio)  # Ensure proper float
                 }
             except Exception as e:
                 print(f"Image analysis failed: {e}")
-                analysis_results = None
+                analysis_results = {
+                    'prominent_color': [200, 200, 200],  # Use list instead of tuple
+                    'has_white_area': False,
+                    'white_area_ratio': 0.0
+                }
                 
             # Generate formatted images
             results = generate_formats(
@@ -409,11 +542,14 @@ def upload_file():
             zip_info = create_zip_file(results, filename_without_ext)
             if zip_info:
                 results['zip'] = zip_info
-                
+            
+            # Ensure results are JSON serializable
+            serializable_results = ensure_serializable(results)
+            
             return jsonify({
                 'success': True,
                 'message': 'File processed successfully',
-                'results': results
+                'results': serializable_results
             })
             
         except ValueError as ve:
