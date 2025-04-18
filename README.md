@@ -18,8 +18,12 @@ BrandKit is a web application designed to streamline the creation of brand asset
 *   **Prominent Color Extraction:** Intelligently detects the main color of your image for use in features like background fill.
 *   **Image Preprocessing:** Apply effects like grayscale, B&W, inversion, hue shifts, temperature adjustments, contrast enhancement, blur, and watermarking *before* generating assets.
 *   **Color Variations:** Optionally generate multiple thematic variations (e.g., Grayscale, Inverted, Warm, Cool) for each selected format.
+*   **Format Presets:** Quickly select common format combinations for specific use cases (Social Media Pack, Website Essentials, etc.).
+*   **Image Optimization:** Control compression quality and strip metadata (EXIF) for privacy and reduced file sizes.
 *   **Multiple Output Types:** Export assets as PNG, JPG, WEBP, and ICO (for favicons).
 *   **Bulk Download:** Download all generated assets conveniently in a single zip file.
+*   **Keyboard Shortcuts:** Power-user features for faster workflows.
+*   **Intelligent Caching:** Improves performance for repeat operations.
 *   **Modern UI:** Clean and responsive interface built with Tailwind CSS and Alpine.js.
 *   **Containerized:** Easy setup and deployment using Docker and Docker Compose.
 
@@ -57,13 +61,26 @@ BrandKit is a web application designed to streamline the creation of brand asset
 
 1.  **Upload:** Drag and drop an image file (PNG, JPG, GIF, WEBP, max 16MB) onto the upload area, or click to select a file.
 2.  **Configure Preprocessing (Optional):** Use the toggles and sliders under "Preprocessing" to apply effects like grayscale, blur, or watermarking to the source image *before* resizing.
-3.  **Select Formats:** Check the boxes for the desired output dimensions (e.g., `website`, `social`, `favicon`). Descriptions are provided for context. Use "Select All" / "Clear All" for convenience.
+3.  **Select Formats:** Check the boxes for the desired output dimensions or use the Format Presets buttons for quick selection of common combinations (e.g., Social Media Pack, Website Essentials).
 4.  **Choose Output Types:** Select the file types you need (PNG, JPG, WEBP, ICO). Note: ICO is only generated if the `favicon` format is selected.
-5.  **Enable Variations (Optional):** Toggle "Generate Color Variations" to create multiple styled versions (Grayscale, Inverted, Hue Shifted, etc.) for *each* selected format.
-6.  **Generate:** Click the **Generate Brand Kit** button.
-7.  **Download:**
+5.  **Advanced Options (Optional):** Expand the Advanced Options panel to control image quality and metadata settings.
+6.  **Enable Variations (Optional):** Toggle "Generate Color Variations" to create multiple styled versions (Grayscale, Inverted, Hue Shifted, etc.) for *each* selected format.
+7.  **Generate:** Click the **Generate Brand Kit** button or use Ctrl+Enter keyboard shortcut.
+8.  **Download:**
     *   Download individual assets using the links provided for each generated format/variation.
     *   Download all generated assets in a structured zip file using the "Download All (.zip)" button.
+
+---
+
+## Keyboard Shortcuts
+
+Press `Shift+?` anywhere in the application to view the available keyboard shortcuts:
+
+* `Space` - Open file selector when focused on upload area
+* `Ctrl+Enter` or `⌘+Enter` - Generate assets (submit form)
+* `Escape` - Reset form or close dialogs
+* `Alt+A` - Select all formats
+* `Alt+N` - Clear all formats
 
 ---
 
@@ -72,9 +89,9 @@ BrandKit is a web application designed to streamline the creation of brand asset
 The `config.json` file defines the available output formats, their dimensions, descriptions, and categories. You can customize this file to add, remove, or modify formats according to your needs.
 
 *   `formats`: Dictionary defining each output format key, width, height, and description.
-*   `format_categories`: Groups formats logically for potential UI improvements (currently informational).
+*   `format_categories`: Groups formats logically for the UI organization.
 *   `output_formats`: Lists the file types the application can export to.
-*   `preprocessing_options`: Defines default values for the preprocessing UI controls (currently not dynamically used for defaults in the UI, but planned).
+*   `preprocessing_options`: Defines default values for the preprocessing UI controls.
 
 ---
 
