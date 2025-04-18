@@ -68,49 +68,58 @@
                     </div>
 
                     <!-- Options Section Below Upload -->
-                    <div class="w-full max-w-3xl mt-8 border-t pt-8"> <!-- Added max-width, margin-top, border -->
+                    <div class="w-full max-w-4xl mt-8 border-t pt-8"> <!-- Increased max-width slightly -->
                         <h2 class="text-2xl font-semibold text-gray-700 mb-6 text-center">2. Configure Options</h2>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
 
                             <!-- Left Column: Preprocessing & Variations -->
-                            <div class="space-y-6">
-                                <!-- Preprocessing Options -->
-                                <div class="space-y-4">
-                                    <h3 class="text-lg font-medium text-gray-600">Preprocessing</h3>
-                                    <div class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm bg-gray-50 p-4 rounded-md border">
+                            <div class="space-y-6 flex flex-col">
+                                <!-- Preprocessing Options Card -->
+                                <div class="bg-gray-50 p-4 rounded-lg border shadow-sm flex-grow">
+                                    <h3 class="text-lg font-medium text-gray-700 mb-3 border-b pb-2">Preprocessing</h3>
+                                    <div class="grid grid-cols-2 gap-x-4 gap-y-4 text-sm pt-2">
+                                        <!-- Checkboxes -->
                                         <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.grayscale" class="rounded text-blue-500 focus:ring-blue-400"><span>Grayscale</span></label>
-                                        <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.bw" class="rounded text-blue-500 focus:ring-blue-400"><span>B&W (High Contrast)</span></label>
-                                        <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.invert" class="rounded text-blue-500 focus:ring-blue-400"><span>Invert Colors</span></label>
-                                        <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.enhance_contrast" class="rounded text-blue-500 focus:ring-blue-400"><span>Enhance Contrast</span></label>
-                                        <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.apply_blur" class="rounded text-blue-500 focus:ring-blue-400"><span>Apply Blur</span></label>
-                                        <div x-show="options.apply_blur" class="col-span-2">
-                                            <label class="block text-xs text-gray-500 mb-1" :for="'blur_radius'">Blur Radius: <span x-text="options.blur_radius"></span></label>
-                                            <input type="range" id="blur_radius" x-model="options.blur_radius" min="0.1" max="10" step="0.1">
+                                        <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.bw" class="rounded text-blue-500 focus:ring-blue-400"><span>B&W</span></label>
+                                        <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.invert" class="rounded text-blue-500 focus:ring-blue-400"><span>Invert</span></label>
+                                        <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.enhance_contrast" class="rounded text-blue-500 focus:ring-blue-400"><span>Contrast++</span></label>
+                                        <!-- Blur -->
+                                        <div class="col-span-2 space-y-2 border-t pt-3 mt-1">
+                                            <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.apply_blur" class="rounded text-blue-500 focus:ring-blue-400"><span>Apply Blur</span></label>
+                                            <div x-show="options.apply_blur" class="pl-6">
+                                                <label class="block text-xs text-gray-500 mb-1" :for="'blur_radius'">Radius: <span x-text="options.blur_radius"></span></label>
+                                                <input type="range" id="blur_radius" x-model="options.blur_radius" min="0.1" max="10" step="0.1">
+                                            </div>
                                         </div>
-                                        <div class="col-span-2">
-                                            <label class="block text-xs text-gray-500 mb-1" :for="'hue_shift'">Hue Shift (°): <span x-text="options.hue_shift"></span></label>
+                                        <!-- Hue Shift -->
+                                        <div class="col-span-2 space-y-2 border-t pt-3">
+                                            <label class="block text-sm text-gray-600 mb-1" :for="'hue_shift'">Hue Shift (°): <span x-text="options.hue_shift" class="font-medium text-gray-800"></span></label>
                                             <input type="range" id="hue_shift" x-model="options.hue_shift" min="-180" max="180" step="10">
                                         </div>
-                                        <div class="col-span-2">
-                                            <label class="block text-xs text-gray-500 mb-1" :for="'temperature'">Temperature: <span x-text="options.temperature > 0 ? '+' + options.temperature : options.temperature"></span></label>
+                                        <!-- Temperature -->
+                                        <div class="col-span-2 space-y-2 border-t pt-3">
+                                            <label class="block text-sm text-gray-600 mb-1" :for="'temperature'">Temperature: <span x-text="options.temperature > 0 ? '+' + options.temperature : options.temperature" class="font-medium text-gray-800"></span></label>
                                             <input type="range" id="temperature" x-model="options.temperature" min="-100" max="100" step="5">
                                         </div>
-                                        <label class="flex items-center space-x-2 col-span-2"><input type="checkbox" x-model="options.add_watermark" class="rounded text-blue-500 focus:ring-blue-400"><span>Add Watermark</span></label>
-                                        <div x-show="options.add_watermark" class="col-span-2 space-y-2">
-                                            <input type="text" x-model="options.watermark_text" placeholder="Watermark Text" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
-                                            <div>
-                                                <label class="block text-xs text-gray-500 mb-1" :for="'watermark_opacity'">Opacity: <span x-text="options.watermark_opacity"></span></label>
-                                                <input type="range" id="watermark_opacity" x-model="options.watermark_opacity" min="0.1" max="1.0" step="0.05">
+                                        <!-- Watermark -->
+                                        <div class="col-span-2 space-y-2 border-t pt-3 mt-1">
+                                            <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.add_watermark" class="rounded text-blue-500 focus:ring-blue-400"><span>Add Watermark</span></label>
+                                            <div x-show="options.add_watermark" class="pl-6 space-y-2">
+                                                <input type="text" x-model="options.watermark_text" placeholder="Watermark Text" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                                                <div>
+                                                    <label class="block text-xs text-gray-500 mb-1" :for="'watermark_opacity'">Opacity: <span x-text="options.watermark_opacity"></span></label>
+                                                    <input type="range" id="watermark_opacity" x-model="options.watermark_opacity" min="0.1" max="1.0" step="0.05">
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Variations Mode -->
-                                <div class="bg-gray-50 p-4 rounded-md border">
+                                <!-- Variations Mode Card -->
+                                <div class="bg-gray-50 p-4 rounded-lg border shadow-sm">
                                     <label class="flex items-center justify-between cursor-pointer">
-                                        <span class="text-lg font-medium text-gray-600">Generate Variations?</span>
+                                        <span class="text-lg font-medium text-gray-700">Generate Variations?</span>
                                         <div class="relative">
                                             <input type="checkbox" x-model="variations_mode" class="sr-only toggle-checkbox">
                                             <div class="block bg-gray-300 w-10 h-6 rounded-full"></div>
@@ -123,46 +132,45 @@
                             </div>
 
                             <!-- Right Column: Formats & Output Types -->
-                            <div class="space-y-6">
-                                <!-- Format Selection -->
-                                <div class="space-y-3 bg-gray-50 p-4 rounded-md border">
-                                     <div class="flex justify-between items-center mb-2">
-                                         <h3 class="text-lg font-medium text-gray-600">Select Formats</h3>
+                            <div class="space-y-6 flex flex-col">
+                                <!-- Format Selection Card -->
+                                <div class="space-y-3 bg-gray-50 p-4 rounded-lg border shadow-sm flex-grow">
+                                     <div class="flex justify-between items-center mb-2 border-b pb-2">
+                                         <h3 class="text-lg font-medium text-gray-700">Select Formats</h3>
                                          <div class="flex space-x-2">
-                                             <button type="button" @click="selectAllFormats()" class="text-xs text-blue-600 hover:text-blue-800">Select All</button>
-                                             <button type="button" @click="clearAllFormats()" class="text-xs text-gray-500 hover:text-gray-700">Clear All</button>
+                                             <button type="button" @click="selectAllFormats()" class="text-xs text-blue-600 hover:text-blue-800">All</button>
+                                             <button type="button" @click="clearAllFormats()" class="text-xs text-gray-500 hover:text-gray-700">None</button>
                                          </div>
                                      </div>
                                      <!-- Consider using icons here in the future -->
-                                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm max-h-60 overflow-y-auto pr-2">
+                                     <!-- Increased columns for formats -->
+                                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm max-h-80 overflow-y-auto pr-2 pt-2">
                                         <template x-for="(format, key) in config.formats" :key="key">
-                                            <label class="flex items-center space-x-2" :title="`${format.description} (${format.width}x${format.height})`">
+                                            <label class="flex items-center space-x-2 group cursor-pointer" :title="`${format.description} (${format.width}x${format.height})`">
                                                 <input type="checkbox" :value="key" x-model="selected_formats" class="rounded text-blue-500 focus:ring-blue-400">
-                                                <!-- Simplified Label -->
-                                                <span class="capitalize" x-text="key.replace(/_/g, ' ')"></span>
+                                                <span class="capitalize group-hover:text-blue-600" x-text="key.replace(/_/g, ' ')"></span>
                                             </label>
                                         </template>
                                      </div>
                                 </div>
 
-                                <!-- Output File Types -->
-                                <div class="space-y-3 bg-gray-50 p-4 rounded-md border">
-                                     <h3 class="text-lg font-medium text-gray-600">Output File Types</h3>
-                                     <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                                <!-- Output File Types Card -->
+                                <div class="space-y-3 bg-gray-50 p-4 rounded-lg border shadow-sm">
+                                     <h3 class="text-lg font-medium text-gray-700 mb-3 border-b pb-2">Output File Types</h3>
+                                     <div class="flex flex-wrap gap-x-6 gap-y-3 text-sm pt-2">
                                         <template x-for="format in config.output_formats" :key="format">
-                                             <label class="flex items-center space-x-2">
-                                                 <input type="checkbox" :value="format" x-model="output_formats" :disabled="format === 'ico' && !selected_formats.includes('favicon')" class="rounded text-blue-500 focus:ring-blue-400 disabled:opacity-50">
+                                             <label class="flex items-center space-x-2 cursor-pointer">
+                                                 <input type="checkbox" :value="format" x-model="output_formats" :disabled="format === 'ico' && !selected_formats.includes('favicon')" class="rounded text-blue-500 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed">
                                                  <span :class="{'text-gray-400': format === 'ico' && !selected_formats.includes('favicon')}" x-text="format.toUpperCase()"></span>
                                              </label>
                                         </template>
                                      </div>
-                                     <p x-show="!selected_formats.includes('favicon') && output_formats.includes('ico')" class="text-xs text-orange-600">ICO format requires 'Favicon' format to be selected.</p>
+                                     <p x-show="!selected_formats.includes('favicon') && output_formats.includes('ico')" class="text-xs text-orange-600 pt-2">ICO format requires 'Favicon' format to be selected.</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-
                 <!-- Submit Button -->
                 <div class="mt-10 pt-6 border-t text-center"> <!-- Increased margin-top -->
                     <button
@@ -225,7 +233,7 @@
                     <!-- Original Image -->
                     <div x-show="results.original" class="bg-gray-50 rounded-lg p-4 border">
                         <h3 class="text-lg font-medium text-gray-800 mb-3">Original Uploaded Image</h3>
-                        <div class="flex justify-center max-h-64 mb-3">
+                        <div class="flex justify-center max-h-64 mb-3"></div>
                              <img :src="results.original.url" class="object-contain rounded-md shadow-sm" />
                         </div>
                         <a :href="results.original.url" download class="text-sm text-blue-600 hover:text-blue-800 flex items-center justify-center">
@@ -237,7 +245,7 @@
                     <!-- Favicon -->
                      <div x-show="results.favicon_ico" class="bg-gray-50 rounded-lg p-4 border">
                         <h3 class="text-lg font-medium text-gray-800 mb-3">Favicon (.ico)</h3>
-                         <div class="flex items-center space-x-4">
+                         <div class="flex items-center space-x-4"></div>
                              <img :src="results.favicon_ico.url" class="w-12 h-12 object-contain border rounded" alt="Favicon Preview"/>
                              <a :href="results.favicon_ico.url" download="favicon.ico" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
                                  <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
