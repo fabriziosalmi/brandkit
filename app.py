@@ -4,6 +4,7 @@ import zipfile
 import io
 import uuid
 import tempfile
+import hashlib
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
 from werkzeug.utils import secure_filename
@@ -278,7 +279,51 @@ def has_significant_white_area(image, threshold=0.15):
     ratio = np.sum(white_or_transparent) / total
     return ratio > threshold, ratio
 
-def generate_formats(original_path, filename_without_ext, selected_formats, output_formats, preprocessing_options, variations_mode=False, fill_white_with_prominent=True):
+def optimize_image(img, output_format, quality=95, strip_metadata=False):
+    """Apply format-specific optimizations to images"""
+    if strip_metadata:
+        # Strip EXIF and other metadata for privacy/security
+        img = img.copy()
+        data = list(img.getdata())
+        img_without_exif = Image.new(img.mode, img.size)
+        img_without_exif.putdata(data)
+        img = img_without_exif
+    
+    # Format-specific optimizations
+    if output_format.lower() in ['jpg', 'jpeg']:
+        return img.convert('RGB'), {'quality': quality}
+    elif output_format.lower() == 'webp':
+        return img, {'quality': quality, 'lossless': False, 'method': 6}
+    elif output_format.lower() == 'png':
+        return img, {'optimize': True, 'compress_level': 9}
+    else:
+        return img, {}
+
+def get_cached_image(cache_key, width, height):
+    """Check if an image with these parameters is already cached"""
+    cache_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'cache')
+    os.makedirs(cache_dir, exist_ok=True)
+    
+    cache_path = os.path.join(cache_dir, f"{cache_key}_{width}x{height}.png")
+    if os.path.exists(cache_path):
+        try:
+            return Image.open(cache_path)
+        except:
+            return None
+    return None
+
+def save_to_cache(img, cache_key, width, height):
+    """Save a processed image to cache"""
+    cache_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'cache')
+    os.makedirs(cache_dir, exist_ok=True)
+    
+    cache_path = os.path.join(cache_dir, f"{cache_key}_{width}x{height}.png")
+    try:
+        img.save(cache_path, "PNG")
+    except Exception as e:
+        print(f"Error saving to cache: {e}")
+
+def generate_formats(original_path, filename_without_ext, selected_formats, output_formats, preprocessing_options, variations_mode=False, fill_white_with_prominent=True, quality=95, strip_metadata=False):
     config = load_config()
     all_available_formats = config['formats']
     formats_to_generate = {k: v for k, v in all_available_formats.items() if k in selected_formats}
@@ -304,6 +349,15 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
     except Exception as e:
         print(f"Error getting prominent color: {e}")
         prominent_color = [200, 200, 200]  # Default color
+    
+    # Create a hash of preprocessing options for cache keys
+    cache_key = hashlib.md5(
+        (
+            f"{os.path.basename(original_path)}_" + 
+            f"{json.dumps(preprocessing_options, sort_keys=True)}_" +
+            f"{fill_white_with_prominent}"
+        ).encode()
+    ).hexdigest()
     
     # Process in variations mode
     if variations_mode:
@@ -362,15 +416,11 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
                         output_path = os.path.join(app.config['UPLOAD_FOLDER'], variation_filename)
                         
                         try:
-                            # Handle different output formats appropriately
-                            if output_format_lower in ['jpg', 'jpeg']:
-                                save_img = new_img.convert('RGB')
-                                save_img.save(output_path, quality=95)
-                            elif output_format_lower == 'webp':
-                                save_img = new_img
-                                save_img.save(output_path, quality=95, lossless=False)
-                            else:
-                                new_img.save(output_path)
+                            # Apply format-specific optimizations
+                            save_img, save_opts = optimize_image(new_img, output_format, quality, strip_metadata)
+                            
+                            # Save with optimized parameters
+                            save_img.save(output_path, **save_opts)
                             
                             format_results[output_format] = {
                                 'path': output_path,
@@ -465,16 +515,12 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
                 output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
                 
                 try:
-                    # Handle different output formats appropriately
-                    if output_format_lower in ['jpg', 'jpeg']:
-                        save_img = new_img.convert('RGB')
-                        save_img.save(output_path, quality=95)
-                    elif output_format_lower == 'webp':
-                        save_img = new_img
-                        save_img.save(output_path, quality=95, lossless=False)
-                    else:
-                        new_img.save(output_path)
-                        
+                    # Apply format-specific optimizations
+                    save_img, save_opts = optimize_image(new_img, output_format, quality, strip_metadata)
+                    
+                    # Save with optimized parameters
+                    save_img.save(output_path, **save_opts)
+                    
                     format_results[output_format] = {
                         'path': output_path,
                         'url': f"/{app.config['UPLOAD_FOLDER']}/{output_filename}",
@@ -521,6 +567,25 @@ def cleanup_old_files(max_age_hours=24):
                         print(f"Error removing file {filename}: {e}")
     except Exception as e:
         print(f"Error during cleanup: {e}")
+    
+    # Also clean the cache directory
+    cache_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'cache')
+    if os.path.exists(cache_dir):
+        try:
+            for filename in os.listdir(cache_dir):
+                file_path = os.path.join(cache_dir, filename)
+                if os.path.isfile(file_path):
+                    file_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+                    age_hours = (current_time - file_time).total_seconds() / 3600
+                    
+                    if age_hours > max_age_hours:
+                        try:
+                            os.remove(file_path)
+                            print(f"Removed old cached file: {filename}")
+                        except Exception as e:
+                            print(f"Error removing cached file {filename}: {e}")
+        except Exception as e:
+            print(f"Error during cache cleanup: {e}")
 
 # Add a memory manager to limit RAM usage
 def cleanup_memory():
@@ -638,6 +703,10 @@ def upload_file():
                 'watermark_opacity': float(request.form.get('watermark_opacity', config.get('preprocessing_options', {}).get('watermark_opacity', 0.3)))
             }
             
+            # Get additional options
+            quality = int(request.form.get('quality', 95))
+            strip_metadata = request.form.get('strip_metadata') == 'true'
+            
             # Generate unique filename
             original_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'png'
             filename_without_ext = uuid.uuid4().hex
@@ -671,7 +740,9 @@ def upload_file():
                 output_formats,
                 preprocessing_options,
                 variations_mode=variations_mode,
-                fill_white_with_prominent=fill_white_with_prominent
+                fill_white_with_prominent=fill_white_with_prominent,
+                quality=quality,
+                strip_metadata=strip_metadata
             )
             
             # Add original to results
@@ -718,6 +789,35 @@ def download_zip(filename):
     if os.path.exists(zip_path):
         return send_file(zip_path, as_attachment=True)
     return jsonify({'error': 'File not found'}), 404
+
+@app.route('/format-info', methods=['GET'])
+def format_info():
+    """Return detailed information about available formats"""
+    config = load_config()
+    categories = config.get('format_categories', {})
+    
+    # Group formats by purpose
+    purposes = {
+        "social": ["social", "twitter", "instagram", "linkedin", "facebook"],
+        "website": ["website", "hero_desktop", "hero_mobile", "background_desktop", "background_mobile"],
+        "icons": ["webapp", "favicon", "square_logo_small", "square_logo_large", "social_icon_small", "social_icon_large"],
+        "general": ["square_1024", "mobile"]
+    }
+    
+    # Create format recommendations
+    recommendations = {
+        "Social Media Pack": ["social", "twitter", "instagram", "facebook", "social_icon_large"],
+        "Website Essentials": ["website", "favicon", "hero_desktop", "background_desktop"],
+        "Mobile App Pack": ["webapp", "mobile", "square_logo_small", "square_logo_large"],
+        "Complete Branding": ["social", "website", "favicon", "webapp", "background_desktop"]
+    }
+    
+    return jsonify({
+        'success': True,
+        'categories': categories,
+        'purposes': purposes,
+        'recommendations': recommendations
+    })
 
 if __name__ == '__main__':
     # Schedule periodic cleanup (if using a production server)

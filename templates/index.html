@@ -244,6 +244,26 @@
                                      </div>
                                 </div>
 
+                                <!-- Add Format Presets Card -->
+                                <div class="bg-gray-50 p-4 rounded-lg border shadow-sm">
+                                    <h3 class="text-lg font-medium text-gray-700 mb-3 border-b pb-2 flex items-center">
+                                        <svg class="w-5 h-5 mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.75v6.75m9-6.75v6.75m1.5-9.75H18a2.25 2.25 0 012.25 2.25v6.75A2.25 2.25 0 0118 18H5.25a2.25 2.25 0 01-2.25-2.25V12a2.25 2.25 0 012.25-2.25H15z" />
+                                        </svg>
+                                        Quick Format Presets
+                                    </h3>
+                                    <div class="flex flex-wrap gap-2 pt-2">
+                                        <template x-for="(formats, presetName) in formatPresets" :key="presetName">
+                                            <button 
+                                                @click="applyFormatPreset(formats)" 
+                                                class="text-xs px-3 py-1.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200">
+                                                <span x-text="presetName"></span>
+                                            </button>
+                                        </template>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-2">Click a preset to quickly select formats for common use cases</p>
+                                </div>
+
                                 <!-- Output File Types Card -->
                                 <div class="space-y-3 bg-gray-50 p-4 rounded-lg border shadow-sm">
                                      <h3 class="text-lg font-medium text-gray-700 mb-3 border-b pb-2 flex items-center">
@@ -259,6 +279,40 @@
                                         </template>
                                      </div>
                                      <p x-show="!selected_formats.includes('favicon') && output_formats.includes('ico')" class="text-xs text-orange-600 pt-2">ICO format requires 'Favicon' format to be selected.</p>
+                                </div>
+
+                                <!-- Add Advanced Options Card -->
+                                <div class="bg-gray-50 p-4 rounded-lg border shadow-sm" x-data="{ showAdvanced: false }">
+                                    <button @click="showAdvanced = !showAdvanced" class="text-left w-full flex items-center justify-between">
+                                        <span class="text-lg font-medium text-gray-700 flex items-center">
+                                            <svg class="w-5 h-5 mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                            Advanced Options
+                                        </span>
+                                        <svg x-show="!showAdvanced" class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                        <svg x-show="showAdvanced" class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                                        </svg>
+                                    </button>
+                                    <div x-show="showAdvanced" class="mt-3 pt-3 border-t space-y-3">
+                                        <!-- Quality Control -->
+                                        <div class="space-y-2">
+                                            <label class="block text-sm text-gray-600 mb-1" for="quality">JPEG/WebP Quality: <span x-text="quality" class="font-medium text-gray-800"></span></label>
+                                            <input type="range" id="quality" x-model="quality" min="70" max="100" step="1">
+                                            <p class="text-xs text-gray-500">Lower quality = smaller file size</p>
+                                        </div>
+                                        
+                                        <!-- Strip Metadata -->
+                                        <label class="flex items-center space-x-2">
+                                            <input type="checkbox" x-model="strip_metadata" class="rounded text-blue-500 focus:ring-blue-400">
+                                            <span class="text-sm">Strip Metadata (EXIF)</span>
+                                            <span class="text-xs text-gray-500 ml-2">Removes camera info, location data, etc.</span>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -539,6 +593,14 @@
                     ungroupedFormats.push(formatKey);
                 }
             }
+
+            // Format preset recommendations
+            const formatPresets = {
+                "Social Media Pack": ["social", "twitter", "instagram", "facebook", "social_icon_large"],
+                "Website Essentials": ["website", "favicon", "hero_desktop", "background_desktop"],
+                "Mobile App Pack": ["webapp", "mobile", "square_logo_small", "square_logo_large"],
+                "Complete Branding": ["social", "website", "favicon", "webapp", "background_desktop"]
+            };
             
             return {
                 config: initialConfig,
@@ -580,6 +642,9 @@
                 output_formats: [...defaultOutputFormats], // Default select common formats
                 variations_mode: false,
                 // --- End Options ---
+                formatPresets: formatPresets,
+                quality: 95,
+                strip_metadata: false,
 
                 init() {
                     // Add 'ico' to output formats if 'favicon' is initially selected
@@ -715,6 +780,8 @@
                     }
                     this.variations_mode = false;
                     this.fill_white_with_prominent = false;
+                    this.quality = 95;
+                    this.strip_metadata = false;
                 },
 
                 selectAllFormats() {
@@ -760,6 +827,13 @@
                     });
                 },
 
+                applyFormatPreset(formats) {
+                    // Clear existing selections
+                    this.clearAllFormats();
+                    // Apply the preset
+                    this.selected_formats = [...formats];
+                },
+
                 uploadImage() {
                     if (!this.file || this.selected_formats.length === 0 || this.output_formats.length === 0) return;
 
@@ -795,6 +869,10 @@
                     // Append variations mode and smart fill option
                     formData.append('variations_mode', this.variations_mode);
                     formData.append('fill_white_with_prominent', this.fill_white_with_prominent);
+
+                    // Append advanced options
+                    formData.append('quality', this.quality);
+                    formData.append('strip_metadata', this.strip_metadata);
 
                     fetch('/upload', {
                         method: 'POST',
@@ -842,5 +920,84 @@
             }
         }
     </script>
+
+    <!-- Add a small dialog with useful keyboard shortcuts information (Shift+? to show) -->
+    <div 
+        x-data="{ show: false }" 
+        @keydown.shift.191.window.prevent="show = true"
+        x-show="show" 
+        x-cloak
+        class="fixed inset-0 z-50 overflow-y-auto" 
+        aria-labelledby="keyboard-shortcuts-title" 
+        role="dialog" 
+        aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div 
+                x-show="show" 
+                x-transition:enter="ease-out duration-300" 
+                x-transition:enter-start="opacity-0" 
+                x-transition:enter-end="opacity-100" 
+                x-transition:leave="ease-in duration-200" 
+                x-transition:leave-start="opacity-100" 
+                x-transition:leave-end="opacity-0" 
+                class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+                @click="show = false" 
+                aria-hidden="true"></div>
+            
+            <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                <div class="sm:flex sm:items-start">
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="keyboard-shortcuts-title">
+                            Keyboard Shortcuts
+                        </h3>
+                        <div class="mt-4">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shortcut</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-gray-900">Space</td>
+                                        <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500">Open file selector</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-gray-900">Ctrl+Enter</td>
+                                        <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500">Generate assets</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-gray-900">Escape</td>
+                                        <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500">Reset form / Close dialog</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                    <button 
+                        type="button" 
+                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm" 
+                        @click="show = false">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keyboard shortcuts accessibility tip -->
+    <div class="fixed bottom-4 right-4">
+        <button 
+            class="bg-gray-100 p-2 rounded-full shadow-md text-gray-500 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            title="Show keyboard shortcuts (Shift + ?)"
+            @click="document.dispatchEvent(new KeyboardEvent('keydown', {'key': '?', 'shiftKey': true}))">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        </button>
+    </div>
 </body>
 </html>
