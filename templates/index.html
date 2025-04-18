@@ -8,7 +8,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         .drop-zone { border: 2px dashed #cbd5e0; transition: all 0.3s ease; }
-        .drop-zone.active { border-color: #4299e1; background-color: #ebf8ff; }
+        .drop-zone.active { border-color: #3b82f6; background-color: #eff6ff; }
         [x-cloak] { display: none !important; }
         /* Style range inputs */
         input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; background: #d1d5db; border-radius: 5px; outline: none; opacity: 0.7; transition: opacity .2s; }
@@ -18,6 +18,11 @@
         /* Simple toggle switch */
         .toggle-checkbox:checked { right: 0; border-color: #60a5fa; }
         .toggle-checkbox:checked + .toggle-label { background-color: #60a5fa; }
+        /* Custom scrollbar for format list */
+        .format-list::-webkit-scrollbar { width: 6px; }
+        .format-list::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 3px; }
+        .format-list::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+        .format-list::-webkit-scrollbar-thumb:hover { background: #64748b; }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 min-h-screen font-sans">
@@ -34,50 +39,54 @@
             <section
                 class="mb-10 bg-white rounded-xl shadow-lg p-6 md:p-8"
                 x-show="!isProcessing && !isComplete">
-                <!-- Changed grid to flex column, centered items -->
                 <div class="flex flex-col items-center gap-8">
                     <!-- Centered Upload Area -->
-                    <div class="w-full max-w-md"> <!-- Added max-width -->
+                    <div class="w-full max-w-xl">
                         <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">1. Upload Image</h2>
-                        <div
-                            class="drop-zone rounded-lg p-8 text-center cursor-pointer h-64 flex flex-col justify-center items-center"
-                            :class="{'active': isDragging}"
-                            @dragover.prevent="isDragging = true"
-                            @dragleave.prevent="isDragging = false"
-                            @drop.prevent="handleDrop($event)"
-                            @click="$refs.fileInput.click()">
-                            <div x-show="!preview" class="text-gray-500">
-                                <svg class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                <p class="mt-3 font-semibold">Drag & drop or click to upload</p>
-                                <p class="mt-1 text-sm">PNG, JPG, GIF, WEBP (Max 16MB)</p>
+                        <div class="flex flex-col md:flex-row items-start gap-6">
+                            <!-- Drop Zone -->
+                            <div
+                                class="drop-zone rounded-lg p-6 text-center cursor-pointer h-64 flex flex-col justify-center items-center flex-1"
+                                :class="{'active': isDragging}"
+                                @dragover.prevent="isDragging = true"
+                                @dragleave.prevent="isDragging = false"
+                                @drop.prevent="handleDrop($event)"
+                                @click="$refs.fileInput.click()">
+                                <div x-show="!preview" class="text-gray-500 space-y-2">
+                                    <svg x-show="!isDragging" class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                    <svg x-show="isDragging" class="w-16 h-16 mx-auto text-blue-500 animate-pulse" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"> <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" /> </svg>
+                                    <p class="font-semibold" x-text="isDragging ? 'Drop image here!' : 'Drag & drop or click'"></p>
+                                    <p class="text-sm" x-text="isDragging ? ' ' : 'PNG, JPG, GIF, WEBP (Max {{ max_upload_mb }}MB)'"></p>
+                                </div>
+                                <div x-show="preview" class="relative max-h-full">
+                                    <img :src="preview" x-ref="previewImg" class="max-h-48 mx-auto rounded-md shadow" @load="getImageDimensions" />
+                                    <button @click.stop="resetForm()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2" aria-label="Remove image"> <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg> </button>
+                                </div>
+                                <input type="file" x-ref="fileInput" class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp" @change="handleFileInput($event)">
                             </div>
-
-                            <div x-show="preview" class="relative max-h-full">
-                                <img :src="preview" class="max-h-48 mx-auto rounded-md shadow" />
-                                <button
-                                    @click.stop="resetForm()"
-                                    class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
-                                    aria-label="Remove image">
-                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
-                                </button>
+                            <!-- File Info -->
+                            <div x-show="fileInfo.name" class="text-sm text-gray-600 space-y-1 pt-2 md:pt-0 md:w-48 flex-shrink-0">
+                                <p class="font-semibold text-gray-800 truncate" :title="fileInfo.name" x-text="fileInfo.name"></p>
+                                <p>Type: <span class="font-medium" x-text="fileInfo.type"></span></p>
+                                <p>Size: <span class="font-medium" x-text="fileInfo.size"></span></p>
+                                <p x-show="fileInfo.dimensions">Dimensions: <span class="font-medium" x-text="fileInfo.dimensions"></span></p>
                             </div>
-
-                            <input type="file" x-ref="fileInput" class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp" @change="handleFileInput($event)">
                         </div>
                         <div x-show="error" class="mt-3 text-sm text-red-600 text-center" x-text="error"></div>
                     </div>
 
                     <!-- Options Section Below Upload -->
-                    <div class="w-full max-w-4xl mt-8 border-t pt-8"> <!-- Increased max-width slightly -->
+                    <div class="w-full max-w-4xl mt-8 border-t pt-8">
                         <h2 class="text-2xl font-semibold text-gray-700 mb-6 text-center">2. Configure Options</h2>
-
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-
                             <!-- Left Column: Preprocessing & Variations -->
                             <div class="space-y-6 flex flex-col">
                                 <!-- Preprocessing Options Card -->
                                 <div class="bg-gray-50 p-4 rounded-lg border shadow-sm flex-grow">
-                                    <h3 class="text-lg font-medium text-gray-700 mb-3 border-b pb-2">Preprocessing</h3>
+                                    <h3 class="text-lg font-medium text-gray-700 mb-3 border-b pb-2 flex items-center">
+                                        <svg class="w-5 h-5 mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"> <path stroke-linecap="round" stroke-linejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" /> </svg>
+                                        Preprocessing
+                                    </h3>
                                     <div class="grid grid-cols-2 gap-x-4 gap-y-4 text-sm pt-2">
                                         <!-- Checkboxes -->
                                         <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.grayscale" class="rounded text-blue-500 focus:ring-blue-400"><span>Grayscale</span></label>
@@ -115,19 +124,20 @@
                                         </div>
                                     </div>
                                 </div>
-
                                 <!-- Variations Mode Card -->
                                 <div class="bg-gray-50 p-4 rounded-lg border shadow-sm">
                                     <label class="flex items-center justify-between cursor-pointer">
-                                        <span class="text-lg font-medium text-gray-700">Generate Variations?</span>
+                                        <span class="text-lg font-medium text-gray-700 flex items-center">
+                                            <svg class="w-5 h-5 mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"> <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v2.25A2.25 2.25 0 006 10.5zm0 9.75h2.25A2.25 2.25 0 0010.5 18v-2.25a2.25 2.25 0 00-2.25-2.25H6a2.25 2.25 0 00-2.25 2.25V18A2.25 2.25 0 006 20.25zm9.75-9.75H18a2.25 2.25 0 002.25-2.25V6A2.25 2.25 0 0018 3.75h-2.25A2.25 2.25 0 0013.5 6v2.25a2.25 2.25 0 002.25 2.25z" /> </svg>
+                                            Generate Variations?
+                                        </span>
                                         <div class="relative">
                                             <input type="checkbox" x-model="variations_mode" class="sr-only toggle-checkbox">
                                             <div class="block bg-gray-300 w-10 h-6 rounded-full"></div>
-                                            <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform"
-                                                 :class="{ 'translate-x-full bg-blue-500': variations_mode }"></div>
+                                            <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform" :class="{ 'translate-x-full bg-blue-500': variations_mode }"></div>
                                         </div>
                                     </label>
-                                    <p class="text-xs text-gray-500 mt-1">Generates multiple versions (grayscale, inverted, etc.) for each selected format.</p>
+                                    <p class="text-xs text-gray-500 mt-1 pl-7">Generates multiple versions (grayscale, inverted, etc.) for each selected format.</p>
                                 </div>
                             </div>
 
@@ -136,27 +146,51 @@
                                 <!-- Format Selection Card -->
                                 <div class="space-y-3 bg-gray-50 p-4 rounded-lg border shadow-sm flex-grow">
                                      <div class="flex justify-between items-center mb-2 border-b pb-2">
-                                         <h3 class="text-lg font-medium text-gray-700">Select Formats</h3>
+                                         <h3 class="text-lg font-medium text-gray-700 flex items-center">
+                                             <svg class="w-5 h-5 mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"> <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /> </svg>
+                                             Select Formats
+                                         </h3>
                                          <div class="flex space-x-2">
                                              <button type="button" @click="selectAllFormats()" class="text-xs text-blue-600 hover:text-blue-800">All</button>
                                              <button type="button" @click="clearAllFormats()" class="text-xs text-gray-500 hover:text-gray-700">None</button>
                                          </div>
                                      </div>
-                                     <!-- Consider using icons here in the future -->
-                                     <!-- Increased columns for formats -->
-                                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm max-h-80 overflow-y-auto pr-2 pt-2">
-                                        <template x-for="(format, key) in config.formats" :key="key">
-                                            <label class="flex items-center space-x-2 group cursor-pointer" :title="`${format.description} (${format.width}x${format.height})`">
-                                                <input type="checkbox" :value="key" x-model="selected_formats" class="rounded text-blue-500 focus:ring-blue-400">
-                                                <span class="capitalize group-hover:text-blue-600" x-text="key.replace(/_/g, ' ')"></span>
-                                            </label>
+                                     <!-- Group formats by category -->
+                                     <div class="space-y-3 max-h-80 overflow-y-auto pr-2 pt-2 format-list">
+                                        <template x-for="(categoryFormats, categoryName) in groupedFormats" :key="categoryName">
+                                            <div class="pt-2">
+                                                <h4 class="text-sm font-semibold text-gray-600 mb-1" x-text="categoryName"></h4>
+                                                <div class="grid grid-cols-2 gap-x-4 gap-y-1 pl-2">
+                                                    <template x-for="formatKey in categoryFormats" :key="formatKey">
+                                                        <label class="flex items-center space-x-2 group cursor-pointer text-sm" :title="`${config.formats[formatKey].description} (${config.formats[formatKey].width}x${config.formats[formatKey].height})`">
+                                                            <input type="checkbox" :value="formatKey" x-model="selected_formats" class="rounded text-blue-500 focus:ring-blue-400">
+                                                            <span class="capitalize group-hover:text-blue-600" x-text="formatKey.replace(/_/g, ' ')"></span>
+                                                        </label>
+                                                    </template>
+                                                </div>
+                                            </div>
                                         </template>
+                                        <!-- Ungrouped formats (if any) -->
+                                        <div x-show="ungroupedFormats.length > 0" class="pt-2">
+                                             <h4 class="text-sm font-semibold text-gray-600 mb-1">Other</h4>
+                                             <div class="grid grid-cols-2 gap-x-4 gap-y-1 pl-2">
+                                                 <template x-for="formatKey in ungroupedFormats" :key="formatKey">
+                                                     <label class="flex items-center space-x-2 group cursor-pointer text-sm" :title="`${config.formats[formatKey].description} (${config.formats[formatKey].width}x${config.formats[formatKey].height})`">
+                                                         <input type="checkbox" :value="formatKey" x-model="selected_formats" class="rounded text-blue-500 focus:ring-blue-400">
+                                                         <span class="capitalize group-hover:text-blue-600" x-text="formatKey.replace(/_/g, ' ')"></span>
+                                                     </label>
+                                                 </template>
+                                             </div>
+                                        </div>
                                      </div>
                                 </div>
 
                                 <!-- Output File Types Card -->
                                 <div class="space-y-3 bg-gray-50 p-4 rounded-lg border shadow-sm">
-                                     <h3 class="text-lg font-medium text-gray-700 mb-3 border-b pb-2">Output File Types</h3>
+                                     <h3 class="text-lg font-medium text-gray-700 mb-3 border-b pb-2 flex items-center">
+                                         <svg class="w-5 h-5 mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"> <path stroke-linecap="round" stroke-linejoin="round" d="M9 13.5l3 3m0 0l3-3m-3 3v-6m1.06-4.19l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" /> </svg>
+                                         Output File Types
+                                     </h3>
                                      <div class="flex flex-wrap gap-x-6 gap-y-3 text-sm pt-2">
                                         <template x-for="format in config.output_formats" :key="format">
                                              <label class="flex items-center space-x-2 cursor-pointer">
@@ -172,7 +206,7 @@
                     </div>
                 </div>
                 <!-- Submit Button -->
-                <div class="mt-10 pt-6 border-t text-center"> <!-- Increased margin-top -->
+                <div class="mt-10 pt-6 border-t text-center">
                     <button
                         @click="uploadImage()"
                         :disabled="!file || isProcessing || selected_formats.length === 0 || output_formats.length === 0"
@@ -187,7 +221,6 @@
                      <p x-show="output_formats.length === 0" class="text-sm text-red-600 mt-2">Please select at least one output file type.</p>
                 </div>
             </section>
-
             <!-- Processing Section -->
             <section
                 class="mb-10 bg-white rounded-xl shadow-lg p-8 text-center"
@@ -324,12 +357,48 @@
 
     <script>
         function appData() {
-            const initialConfig = {{ config | tojson }}; // Get config from Flask
-            const defaultFormats = ['square_1024']; // Default to most useful format only
-            const defaultOutputFormats = ['png', 'ico']; // Default to png and ico only
+            const initialConfig = {{ config | tojson }};
+            const defaultFormats = ['square_1024'];
+            const defaultOutputFormats = ['png', 'ico'];
+
+            // --- Helper function to group formats ---
+            function groupFormats(formats, categories) {
+                const grouped = {};
+                const ungrouped = [];
+                const allCategorized = new Set();
+
+                if (categories) {
+                    for (const categoryName in categories) {
+                        grouped[categoryName] = [];
+                        categories[categoryName].forEach(formatKey => {
+                            if (formats && formats[formatKey]) {
+                                grouped[categoryName].push(formatKey);
+                                allCategorized.add(formatKey);
+                            }
+                        });
+                        // Remove empty categories
+                        if (grouped[categoryName].length === 0) {
+                            delete grouped[categoryName];
+                        }
+                    }
+                }
+
+                if (formats) {
+                    for (const formatKey in formats) {
+                        if (!allCategorized.has(formatKey)) {
+                            ungrouped.push(formatKey);
+                        }
+                    }
+                }
+                return { grouped, ungrouped };
+            }
+            // --- End Helper ---
+
+            const formatGroups = groupFormats(initialConfig.formats, initialConfig.format_categories);
 
             return {
                 config: initialConfig,
+                max_upload_mb: {{ max_upload_mb }},
                 file: null,
                 preview: null,
                 isDragging: false,
@@ -337,67 +406,57 @@
                 isComplete: false,
                 error: null,
                 results: null,
-                // --- Intelligence ---
-                analysis: null, // Holds prominent color/white area info
-                fill_white_with_prominent: false, // User option
-                // --- End Intelligence ---
-                // --- Options ---
-                options: {
-                    grayscale: false,
-                    bw: false,
-                    invert: false,
-                    hue_shift: 0,
-                    temperature: 0,
-                    enhance_contrast: false,
-                    apply_blur: false,
-                    blur_radius: 2.0,
-                    add_watermark: false,
-                    watermark_text: '© BrandKit',
-                    watermark_opacity: 0.3,
+                analysis: null,
+                // --- File Info ---
+                fileInfo: {
+                    name: null,
+                    type: null,
+                    size: null,
+                    dimensions: null,
                 },
-                selected_formats: [...defaultFormats], // Default select all formats
-                output_formats: [...defaultOutputFormats], // Default select common formats
+                // --- Grouped Formats ---
+                groupedFormats: formatGroups.grouped,
+                ungroupedFormats: formatGroups.ungrouped,
+                // --- Options ---
+                options: { ...initialConfig.preprocessing_options },
+                selected_formats: [...defaultFormats],
+                output_formats: [...defaultOutputFormats],
                 variations_mode: false,
-                // --- End Options ---
 
                 init() {
-                    // Add 'ico' to output formats if 'favicon' is initially selected
-                    if (this.selected_formats.includes('favicon')) {
-                        if (!this.output_formats.includes('ico')) {
+                    this.options = { ...this.config.preprocessing_options };
+                    this.manageIcoOutputOption(this.selected_formats);
+                    this.$watch('selected_formats', (newFormats) => this.manageIcoOutputOption(newFormats));
+                    this.$watch('output_formats', (newOutputs) => this.preventIcoWithoutFavicon(newOutputs));
+                },
+
+                manageIcoOutputOption(selectedFormats) {
+                    const icoIndex = this.output_formats.indexOf('ico');
+                    const icoAvailable = this.config.output_formats.includes('ico');
+                    if (selectedFormats.includes('favicon')) {
+                        if (icoIndex === -1 && icoAvailable) {
                             this.output_formats.push('ico');
                         }
-                    }
-                    // Watch for changes in selected_formats to manage 'ico' output option
-                    this.$watch('selected_formats', (newFormats) => {
-                        const icoIndex = this.output_formats.indexOf('ico');
-                        if (newFormats.includes('favicon')) {
-                            // If favicon is selected, ensure ico is an option (if available in config)
-                            if (icoIndex === -1 && this.config.output_formats.includes('ico')) {
-                                this.output_formats.push('ico');
-                            }
-                        } else {
-                            // If favicon is deselected, remove ico from selected outputs
-                            if (icoIndex !== -1) {
-                                this.output_formats.splice(icoIndex, 1);
-                            }
+                    } else {
+                        if (icoIndex !== -1) {
+                            this.output_formats.splice(icoIndex, 1);
                         }
-                    });
-                     // Watch output formats to ensure ico isn't selected without favicon
-                     this.$watch('output_formats', (newOutputs) => {
-                         if (newOutputs.includes('ico') && !this.selected_formats.includes('favicon')) {
-                             const icoIndex = this.output_formats.indexOf('ico');
-                             if (icoIndex !== -1) {
-                                 // This case should be prevented by disabling the checkbox, but as a fallback:
-                                 this.output_formats.splice(icoIndex, 1);
-                                 console.warn("ICO output format automatically deselected because Favicon format is not chosen.");
-                             }
+                    }
+                },
+
+                preventIcoWithoutFavicon(newOutputs) {
+                     if (newOutputs.includes('ico') && !this.selected_formats.includes('favicon')) {
+                         const icoIndex = this.output_formats.indexOf('ico');
+                         if (icoIndex !== -1) {
+                             this.output_formats.splice(icoIndex, 1);
+                             console.warn("ICO output format automatically deselected because Favicon format is not chosen.");
                          }
-                     });
+                     }
                 },
 
                 handleDrop(e) {
                     this.isDragging = false;
-                    this.error = null; // Clear previous error
+                    this.error = null;
                     const droppedFiles = e.dataTransfer.files;
                     if (droppedFiles.length > 0) {
                         this.handleFile(droppedFiles[0]);
@@ -405,27 +464,33 @@
                 },
 
                 handleFileInput(e) {
-                     this.error = null; // Clear previous error
+                    this.error = null;
                     const files = e.target.files;
                     if (files.length > 0) {
                         this.handleFile(files[0]);
                     }
                 },
 
-                handleFile(file) {
+                handleFile(fileToHandle) {
                     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-                    if (!validTypes.includes(file.type)) {
+                    if (!validTypes.includes(fileToHandle.type)) {
                         this.error = 'Invalid file type. Please use JPG, PNG, GIF, or WEBP.';
                         this.resetFileInput();
                         return;
                     }
-                    if (file.size > 16 * 1024 * 1024) { // 16MB
-                         this.error = 'File is too large (Max 16MB).';
+                    const maxSize = this.max_upload_mb * 1024 * 1024;
+                    if (fileToHandle.size > maxSize) {
+                         this.error = `File is too large (Max ${this.max_upload_mb}MB).`;
                          this.resetFileInput();
                         return;
                     }
-                    this.file = file;
-                    this.createPreview(file);
+                    this.file = fileToHandle;
+                    this.fileInfo.name = fileToHandle.name;
+                    this.fileInfo.type = fileToHandle.type.split('/')[1] || 'unknown';
+                    this.fileInfo.size = (fileToHandle.size / 1024 / 1024).toFixed(2) + ' MB';
+                    this.fileInfo.dimensions = null;
+
+                    this.createPreview(fileToHandle);
                 },
 
                 createPreview(file) {
@@ -435,9 +500,16 @@
                     reader.readAsDataURL(file);
                 },
 
+                getImageDimensions() {
+                    if (this.$refs.previewImg) {
+                        this.fileInfo.dimensions = `${this.$refs.previewImg.naturalWidth}x${this.$refs.previewImg.naturalHeight}`;
+                    }
+                },
+
                  resetFileInput() {
                     this.file = null;
                     this.preview = null;
+                    this.fileInfo = { name: null, type: null, size: null, dimensions: null };
                     if (this.$refs.fileInput) {
                         this.$refs.fileInput.value = '';
                     }
@@ -449,13 +521,11 @@
                     this.isComplete = false;
                     this.error = null;
                     this.results = null;
-                    // Reset options to defaults
-                    this.options = { grayscale: false, bw: false, invert: false, hue_shift: 0, temperature: 0, enhance_contrast: false, apply_blur: false, blur_radius: 2.0, add_watermark: false, watermark_text: '© BrandKit', watermark_opacity: 0.3 };
+                    this.analysis = null;
+                    this.options = { ...this.config.preprocessing_options };
                     this.selected_formats = [...defaultFormats];
                     this.output_formats = [...defaultOutputFormats];
-                     if (this.selected_formats.includes('favicon') && !this.output_formats.includes('ico') && this.config.output_formats.includes('ico')) {
-                         this.output_formats.push('ico');
-                     }
+                    this.manageIcoOutputOption(this.selected_formats);
                     this.variations_mode = false;
                 },
 
@@ -471,27 +541,21 @@
                     if (!this.file || this.selected_formats.length === 0 || this.output_formats.length === 0) return;
 
                     this.isProcessing = true;
-                    this.isComplete = false; // Ensure results aren't shown during processing
-                    this.error = null; // Clear previous errors
-                    this.results = null; // Clear previous results
+                    this.isComplete = false;
+                    this.error = null;
+                    this.results = null;
 
                     const formData = new FormData();
                     formData.append('file', this.file);
 
-                    // Append options
                     Object.entries(this.options).forEach(([key, value]) => {
                         formData.append(key, value);
                     });
 
-                    // Append selected formats and output formats
                     this.selected_formats.forEach(format => formData.append('selected_formats', format));
                     this.output_formats.forEach(format => formData.append('output_formats', format));
 
-                    // Append variations mode
                     formData.append('variations_mode', this.variations_mode);
-
-                    // --- Intelligence: add fill_white_with_prominent to upload ---
-                    formData.append('fill_white_with_prominent', this.fill_white_with_prominent);
 
                     fetch('/upload', {
                         method: 'POST',
@@ -499,11 +563,9 @@
                     })
                     .then(response => {
                         if (!response.ok) {
-                            // Try to parse error JSON from backend
                             return response.json().then(errData => {
                                 throw new Error(errData.error || `HTTP error ${response.status}`);
                             }).catch(() => {
-                                // Fallback if error JSON parsing fails
                                 throw new Error(`HTTP error ${response.status}`);
                             });
                         }
@@ -512,19 +574,17 @@
                     .then(data => {
                         if (data.success) {
                             this.results = data.results;
-                            // --- Intelligence: store analysis ---
                             this.analysis = data.results.analysis || null;
                             this.isComplete = true;
                         } else {
-                            // This case might not be reached if using the !response.ok check above
                             this.error = data.error || 'An unknown error occurred during processing.';
-                            this.isComplete = true; // Mark as complete even with error to show message
+                            this.isComplete = true;
                         }
                     })
                     .catch(error => {
                         console.error('Upload Error:', error);
                         this.error = error.message || 'Network error or server issue. Please try again.';
-                        this.isComplete = true; // Mark as complete to show the error message
+                        this.isComplete = true;
                     })
                     .finally(() => {
                          this.isProcessing = false;
