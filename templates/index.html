@@ -323,6 +323,10 @@
                 isComplete: false,
                 error: null,
                 results: null,
+                // --- Intelligence ---
+                analysis: null, // Holds prominent color/white area info
+                fill_white_with_prominent: false, // User option
+                // --- End Intelligence ---
                 // --- Options ---
                 options: {
                     grayscale: false,
@@ -472,6 +476,9 @@
                     // Append variations mode
                     formData.append('variations_mode', this.variations_mode);
 
+                    // --- Intelligence: add fill_white_with_prominent to upload ---
+                    formData.append('fill_white_with_prominent', this.fill_white_with_prominent);
+
                     fetch('/upload', {
                         method: 'POST',
                         body: formData
@@ -491,6 +498,8 @@
                     .then(data => {
                         if (data.success) {
                             this.results = data.results;
+                            // --- Intelligence: store analysis ---
+                            this.analysis = data.results.analysis || null;
                             this.isComplete = true;
                         } else {
                             // This case might not be reached if using the !response.ok check above
@@ -512,4 +521,3 @@
     </script>
 </body>
 </html>
-``` 

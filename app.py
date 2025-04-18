@@ -105,6 +105,29 @@ def adjust_temperature(img, temp):
     arr = np.clip(arr, 0, 255).astype(np.uint8)
     return Image.fromarray(arr, 'RGBA')
 
+def darken_color(color, factor=0.7):
+    """Return a darker version of the color (factor < 1.0)."""
+    return tuple(max(0, int(c * factor)) for c in color)
+
+def create_radial_gradient(size, center_color, edge_color):
+    """Create a radial gradient image from center_color to edge_color."""
+    width, height = size
+    gradient = Image.new('RGBA', (width, height), edge_color + (255,))
+    cx, cy = width // 2, height // 2
+    max_radius = (width**2 + height**2) ** 0.5 / 2
+    arr = np.zeros((height, width, 4), dtype=np.uint8)
+    for y in range(height):
+        for x in range(width):
+            dx, dy = x - cx, y - cy
+            dist = (dx**2 + dy**2) ** 0.5
+            t = min(dist / max_radius, 1.0)
+            color = tuple(
+                int(center_color[i] * (1 - t) + edge_color[i] * t) for i in range(3)
+            )
+            arr[y, x, :3] = color
+            arr[y, x, 3] = 255
+    return Image.fromarray(arr, 'RGBA')
+
 def generate_variations():
     return [
         {'label': 'Original', 'opts': {}},
@@ -148,6 +171,9 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
     except Exception as e:
         print(f"Error opening image: {e}")
         raise ValueError("Could not open or process the uploaded image.")
+    # --- Intelligence: get prominent color and check if original is square ---
+    prominent_color = get_prominent_color(original)
+    is_square = original.width == original.height
     if variations_mode:
         results['variations'] = {}
         variations_list = generate_variations()
@@ -164,12 +190,22 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
                 dimensions = (format_config['width'], format_config['height'])
                 img_copy = processed_image.copy()
                 img_copy.thumbnail(dimensions, Image.LANCZOS)
-                new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
-                paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
-                if img_copy.mode == 'RGBA':
-                    new_img.paste(img_copy, paste_pos, img_copy)
+                # --- Intelligence: fill non-square background for square uploads ---
+                if is_square and dimensions[0] != dimensions[1]:
+                    # Create radial gradient background
+                    center_color = darken_color(prominent_color, 0.7)
+                    edge_color = prominent_color
+                    bg = create_radial_gradient(dimensions, center_color, edge_color)
+                    paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                    bg.paste(img_copy, paste_pos, img_copy)
+                    new_img = bg
                 else:
-                    new_img.paste(img_copy, paste_pos)
+                    new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
+                    paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                    if img_copy.mode == 'RGBA':
+                        new_img.paste(img_copy, paste_pos, img_copy)
+                    else:
+                        new_img.paste(img_copy, paste_pos)
                 format_results = {}
                 for output_format in output_formats:
                     output_format_lower = output_format.lower()
@@ -221,12 +257,22 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
         dimensions = (format_config['width'], format_config['height'])
         img_copy = processed_image.copy()
         img_copy.thumbnail(dimensions, Image.LANCZOS)
-        new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
-        paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
-        if img_copy.mode == 'RGBA':
-            new_img.paste(img_copy, paste_pos, img_copy)
+        # --- Intelligence: fill non-square background for square uploads ---
+        if is_square and dimensions[0] != dimensions[1]:
+            # Create radial gradient background
+            center_color = darken_color(prominent_color, 0.7)
+            edge_color = prominent_color
+            bg = create_radial_gradient(dimensions, center_color, edge_color)
+            paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+            bg.paste(img_copy, paste_pos, img_copy)
+            new_img = bg
         else:
-            new_img.paste(img_copy, paste_pos)
+            new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
+            paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+            if img_copy.mode == 'RGBA':
+                new_img.paste(img_copy, paste_pos, img_copy)
+            else:
+                new_img.paste(img_copy, paste_pos)
         format_results = {}
         for output_format in output_formats:
             output_format_lower = output_format.lower()
@@ -321,6 +367,36 @@ def create_zip_file(results, filename_prefix):
         'filename': zip_filename
     }
 
+def get_prominent_color(image, exclude_white=True):
+    """Extract the most prominent color from the image, optionally ignoring white/near-white pixels."""
+    img = image.convert('RGBA').resize((64, 64))  # Downsize for speed
+    arr = np.array(img)
+    pixels = arr.reshape(-1, 4)
+    # Remove fully transparent pixels
+    pixels = pixels[pixels[:, 3] > 0]
+    if exclude_white:
+        # Remove near-white pixels
+        pixels = pixels[(pixels[:, 0:3] < 245).any(axis=1)]
+    if len(pixels) == 0:
+        return (200, 200, 200)  # fallback gray
+    # Find most common color
+    colors, counts = np.unique(pixels[:, :3], axis=0, return_counts=True)
+    prominent = colors[counts.argmax()]
+    return tuple(int(x) for x in prominent)
+
+def has_significant_white_area(image, threshold=0.15):
+    """Detect if the image has a significant white or transparent area (default: >15%)."""
+    img = image.convert('RGBA')
+    arr = np.array(img)
+    total = arr.shape[0] * arr.shape[1]
+    # White: all RGB > 245, alpha > 200
+    white = ((arr[..., :3] > 245).all(axis=-1)) & (arr[..., 3] > 200)
+    # Transparent: alpha < 32
+    transparent = arr[..., 3] < 32
+    white_or_transparent = white | transparent
+    ratio = np.sum(white_or_transparent) / total
+    return ratio > threshold, ratio
+
 @app.route('/')
 def index():
     config = load_config()
@@ -365,6 +441,17 @@ def upload_file():
             unique_filename = f"{filename_without_ext}.{original_ext}"
             original_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
             file.save(original_path)
+            # --- Intelligence: analyze image ---
+            try:
+                img_for_analysis = Image.open(original_path)
+                prominent_color = get_prominent_color(img_for_analysis)
+                has_white_area, white_area_ratio = has_significant_white_area(img_for_analysis)
+            except Exception as e:
+                print(f"Image analysis failed: {e}")
+                prominent_color = (200, 200, 200)
+                has_white_area = False
+                white_area_ratio = 0.0
+            # ...existing code...
             results = generate_formats(
                 original_path,
                 filename_without_ext,
@@ -380,6 +467,12 @@ def upload_file():
             zip_info = create_zip_file(results, filename_without_ext)
             if zip_info:
                 results['zip'] = zip_info
+            # --- Add intelligence info to response ---
+            results['analysis'] = {
+                'prominent_color': tuple(int(x) for x in prominent_color),
+                'has_white_area': bool(has_white_area),
+                'white_area_ratio': float(white_area_ratio)
+            }
             return jsonify({
                 'success': True,
                 'message': 'File processed successfully',
