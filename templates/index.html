@@ -311,8 +311,8 @@
     <script>
         function appData() {
             const initialConfig = {{ config | tojson }}; // Get config from Flask
-            const defaultFormats = Object.keys(initialConfig.formats || {});
-            const defaultOutputFormats = (initialConfig.output_formats || ['png', 'jpg', 'webp', 'ico']).filter(f => f !== 'ico'); // Default exclude ico unless favicon selected
+            const defaultFormats = ['square_1024']; // Default to most useful format only
+            const defaultOutputFormats = ['png', 'ico']; // Default to png and ico only
 
             return {
                 config: initialConfig,

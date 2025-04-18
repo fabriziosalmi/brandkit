@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  brandkit:
+    build: .
+    container_name: brandkit
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./static/uploads:/app/static/uploads
+    environment:
+      - FLASK_ENV=production
+    restart: unless-stopped

@@ -134,6 +134,11 @@
             "width": 1200,
             "height": 800,
             "description": "Blog post image (desktop)"
+        },
+        "square_1024": {
+            "width": 1024,
+            "height": 1024,
+            "description": "Square (1024x1024) - App icon, profile, general purpose"
         }
     },
     "format_categories": {
