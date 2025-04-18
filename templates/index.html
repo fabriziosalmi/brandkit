@@ -284,8 +284,8 @@
                     <!-- Original Image -->
                     <div x-show="results.original" class="bg-gray-50 rounded-lg p-4 border">
                         <h3 class="text-lg font-medium text-gray-800 mb-3">Original Uploaded Image</h3>
-                        <div class="flex justify-center max-h-64 mb-3"></div>
-                             <img :src="results.original.url" class="object-contain rounded-md shadow-sm" />
+                        <div class="flex justify-center max-h-64 mb-3">
+                            <img :src="results.original.url" class="object-contain rounded-md shadow-sm" />
                         </div>
                         <a :href="results.original.url" download class="text-sm text-blue-600 hover:text-blue-800 flex items-center justify-center">
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
@@ -294,19 +294,19 @@
                     </div>
 
                     <!-- Favicon -->
-                     <div x-show="results.favicon_ico" class="bg-gray-50 rounded-lg p-4 border">
+                    <div x-show="results.favicon_ico" class="bg-gray-50 rounded-lg p-4 border">
                         <h3 class="text-lg font-medium text-gray-800 mb-3">Favicon (.ico)</h3>
-                         <div class="flex items-center space-x-4"></div>
-                             <img :src="results.favicon_ico.url" class="w-12 h-12 object-contain border rounded" alt="Favicon Preview"/>
-                             <a :href="results.favicon_ico.url" download="favicon.ico" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
-                                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                 Download favicon.ico
-                             </a>
-                         </div>
+                        <div class="flex items-center space-x-4">
+                            <img :src="results.favicon_ico.url" class="w-12 h-12 object-contain border rounded" alt="Favicon Preview"/>
+                            <a :href="results.favicon_ico.url" download="favicon.ico" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                Download favicon.ico
+                            </a>
+                        </div>
                     </div>
 
                     <!-- Variations Display -->
-                    <div x-show="results.variations">
+                    <div x-show="results && results.variations">
                         <h3 class="text-xl font-semibold text-gray-800 mb-4">Generated Variations</h3>
                         <div class="space-y-6">
                             <template x-for="(variationData, variationLabel) in results.variations" :key="variationLabel">
@@ -339,13 +339,67 @@
                     </div>
 
                     <!-- Standard (Non-Variations) Display -->
-                    <div x-show="!results.variations">
-                         <h3 class="text-xl font-semibold text-gray-800 mb-4">Generated Formats</h3>
-                         <!-- Two-column layout for format details -->
-                         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                             <template x-for="(formatData, formatName) in results" :key="formatName">
-                                 <div x-show="!['original', 'zip', 'variations', 'favicon_ico', 'analysis'].includes(formatName)" class="bg-gray-50 rounded-lg p-3 border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                                     <div class="mb-2 sm:mb-0 mr-2">
+                    <div x-show="results && !results.variations">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Generated Formats</h3>
+                        <!-- Two-column layout for format details -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                            <template x-for="(formatData, formatName) in results" :key="formatName">
+                                <div x-show="!['original', 'zip', 'variations', 'favicon_ico', 'analysis'].includes(formatName)" class="bg-gray-50 rounded-lg p-3 border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                                    <div class="mb-2 sm:mb-0 mr-2">
+                                        <p class="text-sm font-semibold text-gray-700 capitalize" x-text="formatName.replace(/_/g, ' ')"></p>
+                                        <p class="text-xs text-gray-500" x-text="formatData.description"></p>
+                                    </div>
+                                    <!-- Dimensions and Download Buttons -->
+                                    <div class="flex flex-wrap items-center gap-2 shrink-0">
+                                        <span class="text-xs px-2 py-1 rounded bg-gray-200 text-gray-700 whitespace-nowrap" x-text="`(${formatData.dimensions[0]}x${formatData.dimensions[1]})`"></span>
+                                        <template x-for="(outputData, outputFormat) in formatData.outputs" :key="outputFormat">
+                                            <a :href="outputData.url" download :download="`${formatName}.${outputFormat}`"
+                                               class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 whitespace-nowrap">
+                                               .<span x-text="outputFormat"></span>
+                                            </a>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        function appData() {
+            // Get config from server-side template
+            const initialConfig = {{ config|tojson }};
+            const max_upload_mb = {{ max_upload_mb|tojson }};
+            
+            // Constants for default selections
+            const defaultFormats = ['webapp', 'social', 'favicon'];
+            const defaultOutputFormats = ['png', 'jpg'];
+            
+            // Format groups for better UI organization
+            const groupedFormats = {};
+            const ungroupedFormats = [];
+            
+            // Process formats into groups
+            for (const formatKey in initialConfig.formats) {
+                let categoryFound = false;
+                for (const category in initialConfig.format_categories || {}) {
+                    if (initialConfig.format_categories[category].includes(formatKey)) {
+                        if (!groupedFormats[category]) {
+                            groupedFormats[category] = [];
+                        }
+                        groupedFormats[category].push(formatKey);
+                        categoryFound = true;
+                        break;
+                    }
+                }
+                if (!categoryFound) {
+                    ungroupedFormats.push(formatKey);
+                }
+            }
+            
             return {
                 config: initialConfig,
                 file: null,
@@ -355,6 +409,15 @@
                 isComplete: false,
                 error: null,
                 results: null,
+                max_upload_mb: max_upload_mb,
+                groupedFormats: groupedFormats,
+                ungroupedFormats: ungroupedFormats,
+                fileInfo: {
+                    name: '',
+                    type: '',
+                    size: '',
+                    dimensions: ''
+                },
                 // --- Intelligence ---
                 analysis: null, // Holds prominent color/white area info
                 fill_white_with_prominent: false, // User option
@@ -400,17 +463,25 @@
                             }
                         }
                     });
-                     // Watch output formats to ensure ico isn't selected without favicon
-                     this.$watch('output_formats', (newOutputs) => {
-                         if (newOutputs.includes('ico') && !this.selected_formats.includes('favicon')) {
-                             const icoIndex = this.output_formats.indexOf('ico');
-                             if (icoIndex !== -1) {
-                                 // This case should be prevented by disabling the checkbox, but as a fallback:
-                                 this.output_formats.splice(icoIndex, 1);
-                                 console.warn("ICO output format automatically deselected because Favicon format is not chosen.");
-                             }
-                         }
-                     });
+                    // Watch output formats to ensure ico isn't selected without favicon
+                    this.$watch('output_formats', (newOutputs) => {
+                        if (newOutputs.includes('ico') && !this.selected_formats.includes('favicon')) {
+                            const icoIndex = this.output_formats.indexOf('ico');
+                            if (icoIndex !== -1) {
+                                // This case should be prevented by disabling the checkbox, but as a fallback:
+                                this.output_formats.splice(icoIndex, 1);
+                                console.warn("ICO output format automatically deselected because Favicon format is not chosen.");
+                            }
+                        }
+                    });
+                },
+
+                getImageDimensions() {
+                    if (this.$refs.previewImg && this.$refs.previewImg.complete) {
+                        const width = this.$refs.previewImg.naturalWidth;
+                        const height = this.$refs.previewImg.naturalHeight;
+                        this.fileInfo.dimensions = `${width}x${height}`;
+                    }
                 },
 
                 handleDrop(e) {
@@ -437,13 +508,24 @@
                         this.resetFileInput();
                         return;
                     }
-                    if (file.size > 16 * 1024 * 1024) { // 16MB
-                         this.error = 'File is too large (Max 16MB).';
+                    if (file.size > this.max_upload_mb * 1024 * 1024) {
+                         this.error = `File is too large (Max ${this.max_upload_mb}MB).`;
                          this.resetFileInput();
                         return;
                     }
                     this.file = file;
                     this.createPreview(file);
+                    
+                    // Update file info
+                    this.fileInfo.name = file.name;
+                    this.fileInfo.type = file.type.replace('image/', '').toUpperCase();
+                    this.fileInfo.size = this.formatFileSize(file.size);
+                },
+
+                formatFileSize(bytes) {
+                    if (bytes < 1024) return bytes + ' B';
+                    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
                 },
 
                 createPreview(file) {
@@ -453,13 +535,14 @@
                     reader.readAsDataURL(file);
                 },
 
-                 resetFileInput() {
+                resetFileInput() {
                     this.file = null;
                     this.preview = null;
+                    this.fileInfo = {name: '', type: '', size: '', dimensions: ''};
                     if (this.$refs.fileInput) {
                         this.$refs.fileInput.value = '';
                     }
-                 },
+                },
 
                 resetForm() {
                     this.resetFileInput();
@@ -467,14 +550,28 @@
                     this.isComplete = false;
                     this.error = null;
                     this.results = null;
+                    this.analysis = null;
                     // Reset options to defaults
-                    this.options = { grayscale: false, bw: false, invert: false, hue_shift: 0, temperature: 0, enhance_contrast: false, apply_blur: false, blur_radius: 2.0, add_watermark: false, watermark_text: '© BrandKit', watermark_opacity: 0.3 };
+                    this.options = { 
+                        grayscale: false, 
+                        bw: false, 
+                        invert: false, 
+                        hue_shift: 0, 
+                        temperature: 0, 
+                        enhance_contrast: false, 
+                        apply_blur: false, 
+                        blur_radius: 2.0, 
+                        add_watermark: false, 
+                        watermark_text: '© BrandKit', 
+                        watermark_opacity: 0.3 
+                    };
                     this.selected_formats = [...defaultFormats];
                     this.output_formats = [...defaultOutputFormats];
-                     if (this.selected_formats.includes('favicon') && !this.output_formats.includes('ico') && this.config.output_formats.includes('ico')) {
-                         this.output_formats.push('ico');
-                     }
+                    if (this.selected_formats.includes('favicon') && !this.output_formats.includes('ico') && this.config.output_formats.includes('ico')) {
+                        this.output_formats.push('ico');
+                    }
                     this.variations_mode = false;
+                    this.fill_white_with_prominent = false;
                 },
 
                 selectAllFormats() {
@@ -486,67 +583,7 @@
                 },
 
                 uploadImage() {
-                    if (!this.file || this.selected_formats.length === 0 || this.output_formats.length === 0) return;
-
-                    this.isProcessing = true;
-                    this.isComplete = false; // Ensure results aren't shown during processing
-                    this.error = null; // Clear previous errors
-                    this.results = null; // Clear previous results
-
-                    const formData = new FormData();
-                    formData.append('file', this.file);
-
-                    // Append options
-                    Object.entries(this.options).forEach(([key, value]) => {
-                        formData.append(key, value);
-                    });
-
-                    // Append selected formats and output formats
-                    this.selected_formats.forEach(format => formData.append('selected_formats', format));
-                    this.output_formats.forEach(format => formData.append('output_formats', format));
-
-                    // Append variations mode
-                    formData.append('variations_mode', this.variations_mode);
-
-                    // --- Intelligence: add fill_white_with_prominent to upload ---
-                    formData.append('fill_white_with_prominent', this.fill_white_with_prominent);
-
-                    fetch('/upload', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            // Try to parse error JSON from backend
-                            return response.json().then(errData => {
-                                throw new Error(errData.error || `HTTP error ${response.status}`);
-                            }).catch(() => {
-                                // Fallback if error JSON parsing fails
-                                throw new Error(`HTTP error ${response.status}`);
-                            });
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.success) {
-                            this.results = data.results;
-                            // --- Intelligence: store analysis ---
-                            this.analysis = data.results.analysis || null;
-                            this.isComplete = true;
-                        } else {
-                            // This case might not be reached if using the !response.ok check above
-                            this.error = data.error || 'An unknown error occurred during processing.';
-                            this.isComplete = true; // Mark as complete even with error to show message
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Upload Error:', error);
-                        this.error = error.message || 'Network error or server issue. Please try again.';
-                        this.isComplete = true; // Mark as complete to show the error message
-                    })
-                    .finally(() => {
-                         this.isProcessing = false;
-                    });
+                    // ...existing code...
                 }
             }
         }
