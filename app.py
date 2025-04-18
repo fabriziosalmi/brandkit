@@ -307,8 +307,105 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
     
     # Process in variations mode
     if variations_mode:
-        # ...existing variations processing code...
-        pass
+        variations_results = {}
+        variation_definitions = generate_variations()
+        
+        for variation in variation_definitions:
+            variation_label = variation['label']
+            # Combine base options with variation-specific options
+            combined_options = preprocessing_options.copy()
+            for opt_key, opt_value in variation['opts'].items():
+                combined_options[opt_key] = opt_value
+            
+            try:
+                # Process the image with this variation's options
+                variation_img = preprocess_image(original.copy(), combined_options)
+                
+                # Generate formats for this variation
+                variation_data = {}
+                
+                for format_name, format_config in formats_to_generate.items():
+                    dimensions = (format_config['width'], format_config['height'])
+                    img_copy = variation_img.copy()
+                    
+                    # Resize the image maintaining aspect ratio
+                    img_copy.thumbnail(dimensions, Image.LANCZOS)
+                    
+                    # Apply smart fill if appropriate
+                    if is_square and dimensions[0] != dimensions[1] and fill_white_with_prominent:
+                        center_color = darken_color(prominent_color, 0.7)
+                        edge_color = prominent_color
+                        bg = create_radial_gradient(dimensions, center_color, edge_color)
+                        paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                        bg.paste(img_copy, paste_pos, img_copy)
+                        new_img = bg
+                    else:
+                        # Center the image on a transparent background
+                        new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
+                        paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                        
+                        if img_copy.mode == 'RGBA':
+                            new_img.paste(img_copy, paste_pos, img_copy)
+                        else:
+                            new_img.paste(img_copy, paste_pos)
+                    
+                    # Save in each requested output format
+                    format_results = {}
+                    for output_format in output_formats:
+                        output_format_lower = output_format.lower()
+                        
+                        # Skip ICO format except for favicon
+                        if output_format_lower == 'ico' and format_name != 'favicon':
+                            continue
+                        
+                        variation_filename = f"{filename_without_ext}_{variation_label}_{format_name}.{output_format_lower}"
+                        output_path = os.path.join(app.config['UPLOAD_FOLDER'], variation_filename)
+                        
+                        try:
+                            # Handle different output formats appropriately
+                            if output_format_lower in ['jpg', 'jpeg']:
+                                save_img = new_img.convert('RGB')
+                                save_img.save(output_path, quality=95)
+                            elif output_format_lower == 'webp':
+                                save_img = new_img
+                                save_img.save(output_path, quality=95, lossless=False)
+                            else:
+                                new_img.save(output_path)
+                            
+                            format_results[output_format] = {
+                                'path': output_path,
+                                'url': f"/{app.config['UPLOAD_FOLDER']}/{variation_filename}",
+                            }
+                        except Exception as e:
+                            print(f"Error saving {variation_label} {format_name} as {output_format}: {e}")
+                    
+                    # Add to results if any formats were successfully saved
+                    if format_results:
+                        variation_data[format_name] = {
+                            'outputs': format_results,
+                            'dimensions': dimensions,
+                            'description': format_config.get('description', '')
+                        }
+                
+                if variation_data:
+                    variations_results[variation_label] = variation_data
+                
+            except Exception as e:
+                print(f"Error processing variation {variation_label}: {e}")
+        
+        # If we have any variations, add them to the results
+        if variations_results:
+            results['variations'] = variations_results
+        
+        # Also generate favicon in variations mode if requested
+        if 'favicon' in selected_formats and 'ico' in output_formats:
+            try:
+                # Use the "Original" variation settings for favicon
+                original_opts = next((v['opts'] for v in variation_definitions if v['label'] == 'Original'), {})
+                favicon_img = preprocess_image(original.copy(), original_opts)
+                results['favicon_ico'] = create_favicon(favicon_img, filename_without_ext)
+            except Exception as e:
+                print(f"Error creating favicon in variations mode: {e}")
     
     # Process in standard mode
     else:
@@ -394,6 +491,55 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
                 }
                 
     return results
+
+# Add a cleanup function to remove old files (can be called periodically)
+def cleanup_old_files(max_age_hours=24):
+    """Remove files older than max_age_hours from the uploads folder"""
+    current_time = datetime.now()
+    upload_dir = app.config['UPLOAD_FOLDER']
+    
+    try:
+        for filename in os.listdir(upload_dir):
+            # Skip the README.md file
+            if filename == 'README.md':
+                continue
+                
+            file_path = os.path.join(upload_dir, filename)
+            # Check if it's a file (not a directory)
+            if os.path.isfile(file_path):
+                # Get file modification time
+                file_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+                # Calculate age in hours
+                age_hours = (current_time - file_time).total_seconds() / 3600
+                
+                # Remove files older than max_age_hours
+                if age_hours > max_age_hours:
+                    try:
+                        os.remove(file_path)
+                        print(f"Removed old file: {filename}")
+                    except Exception as e:
+                        print(f"Error removing file {filename}: {e}")
+    except Exception as e:
+        print(f"Error during cleanup: {e}")
+
+# Add a memory manager to limit RAM usage
+def cleanup_memory():
+    """Force garbage collection and report memory usage"""
+    import gc
+    import psutil
+    
+    # Force garbage collection
+    collected = gc.collect()
+    
+    # Get current process
+    process = psutil.Process(os.getpid())
+    
+    # Get memory info in MB
+    memory_usage = process.memory_info().rss / 1024 / 1024
+    
+    print(f"Memory cleanup: collected {collected} objects, current usage: {memory_usage:.2f} MB")
+    
+    return memory_usage
 
 @app.route('/')
 def index():
@@ -546,6 +692,10 @@ def upload_file():
             # Ensure results are JSON serializable
             serializable_results = ensure_serializable(results)
             
+            # Run memory cleanup after processing large batches
+            if len(selected_formats) > 5 or variations_mode:
+                cleanup_memory()
+            
             return jsonify({
                 'success': True,
                 'message': 'File processed successfully',
@@ -570,5 +720,21 @@ def download_zip(filename):
     return jsonify({'error': 'File not found'}), 404
 
 if __name__ == '__main__':
+    # Schedule periodic cleanup (if using a production server)
+    if os.environ.get('FLASK_ENV') != 'development':
+        import threading
+        
+        def scheduled_cleanup():
+            while True:
+                # Sleep for 1 hour
+                time.sleep(3600)
+                # Run cleanup
+                cleanup_old_files()
+                cleanup_memory()
+        
+        # Start cleanup thread
+        cleanup_thread = threading.Thread(target=scheduled_cleanup, daemon=True)
+        cleanup_thread.start()
+    
     is_debug = os.environ.get('FLASK_ENV') == 'development'
     app.run(host='0.0.0.0', port='8000', debug=is_debug)

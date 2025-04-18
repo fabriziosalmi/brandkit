@@ -23,6 +23,47 @@
         .format-list::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 3px; }
         .format-list::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
         .format-list::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* Improved accessibility for focus states */
+        a:focus, button:focus, input:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+        
+        /* Preview thumbnails for results */
+        .result-thumbnail {
+            position: relative;
+            overflow: hidden;
+            border-radius: 0.25rem;
+            border: 1px solid #e5e7eb;
+            width: 60px;
+            height: 60px;
+            margin-right: 0.5rem;
+        }
+        .result-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        /* Responsive tweaks */
+        @media (max-width: 640px) {
+            .hide-on-mobile {
+                display: none;
+            }
+            .mobile-full-width {
+                width: 100%;
+            }
+        }
+        
+        /* Animation for loading steps */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .loading-step {
+            animation: fadeIn 0.3s ease-in-out;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 min-h-screen font-sans">
@@ -241,14 +282,44 @@
             </section>
             <!-- Processing Section -->
             <section
-                class="mb-10 bg-white rounded-xl shadow-lg p-8 text-center"
+                class="mb-10 bg-white rounded-xl shadow-lg p-8"
                 x-show="isProcessing">
                 <svg class="animate-spin h-12 w-12 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
                 <p class="mt-4 text-xl text-gray-700 font-semibold">Generating your assets...</p>
-                <p class="mt-2 text-sm text-gray-500">Applying options and resizing images. This might take a moment.</p>
+                
+                <!-- Show processing steps -->
+                <div class="mt-4 max-w-md mx-auto text-left">
+                    <div class="text-sm text-gray-600">
+                        <div class="loading-step flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span>Processing image...</span>
+                        </div>
+                        <div x-show="variations_mode" class="loading-step flex items-center space-x-2 mt-1">
+                            <svg class="w-4 h-4 text-blue-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m-15.357-2a8.001 8.001 0 0115.357 2m0 0H15"></path></svg>
+                            <span>Generating variations...</span>
+                        </div>
+                        <div class="loading-step flex items-center space-x-2 mt-1">
+                            <svg class="w-4 h-4 text-blue-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"></path></svg>
+                            <span>Resizing to <span x-text="selected_formats.length"></span> formats...</span>
+                        </div>
+                        <div class="loading-step flex items-center space-x-2 mt-1">
+                            <svg class="w-4 h-4 text-blue-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                            <span>Creating output files...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <p class="mt-4 text-sm text-gray-500">This might take a moment, especially for variations and larger images.</p>
+                
+                <!-- Add a cancel option -->
+                <button 
+                    @click="isProcessing = false; error = 'Processing cancelled by user.'; isComplete = true;"
+                    class="mt-6 text-sm text-red-600 hover:text-red-800 underline">
+                    Cancel processing
+                </button>
             </section>
 
             <!-- Results Section -->
@@ -391,9 +462,17 @@
                                         <div x-show="!['original', 'zip', 'variations', 'favicon_ico', 'analysis'].includes(formatName)" 
                                              class="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-blue-200 hover:shadow-md transition duration-150">
                                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                                                <div class="mb-2 sm:mb-0 mr-2">
-                                                    <p class="text-sm font-semibold text-gray-700 capitalize" x-text="formatName.replace(/_/g, ' ')"></p>
-                                                    <p class="text-xs text-gray-500" x-text="formatData.description"></p>
+                                                <div class="flex items-center mb-2 sm:mb-0 mr-2">
+                                                    <!-- Add thumbnail preview -->
+                                                    <div class="result-thumbnail hide-on-mobile">
+                                                        <template x-for="(outputData, outputFormat) in formatData.outputs" :key="outputFormat">
+                                                            <img x-show="outputFormat === Object.keys(formatData.outputs)[0]" :src="outputData.url" alt="" />
+                                                        </template>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-sm font-semibold text-gray-700 capitalize" x-text="formatName.replace(/_/g, ' ')"></p>
+                                                        <p class="text-xs text-gray-500" x-text="formatData.description"></p>
+                                                    </div>
                                                 </div>
                                                 <!-- Dimensions and Download Buttons -->
                                                 <div class="flex flex-wrap items-center gap-2 shrink-0">
@@ -581,6 +660,9 @@
                     this.fileInfo.name = file.name;
                     this.fileInfo.type = file.type.replace('image/', '').toUpperCase();
                     this.fileInfo.size = this.formatFileSize(file.size);
+                    
+                    // After successfully handling the file, analyze it
+                    this.analyzeUploadedImage();
                 },
 
                 formatFileSize(bytes) {
@@ -643,6 +725,41 @@
                     this.selected_formats = [];
                 },
 
+                analyzeUploadedImage() {
+                    if (!this.file) return;
+                    
+                    // Create a form data object
+                    const formData = new FormData();
+                    formData.append('file', this.file);
+                    
+                    // Show a subtle loading indicator
+                    this.analysis = { analyzing: true };
+                    
+                    // Make the analysis request
+                    fetch('/analyze', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.analysis = data.analysis;
+                            
+                            // Auto-enable smart fill if significant white area detected
+                            if (data.analysis.has_white_area && data.analysis.white_area_ratio > 0.3) {
+                                this.fill_white_with_prominent = true;
+                            }
+                        } else {
+                            console.warn('Image analysis failed:', data.error);
+                            this.analysis = null;
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error analyzing image:', err);
+                        this.analysis = null;
+                    });
+                },
+
                 uploadImage() {
                     if (!this.file || this.selected_formats.length === 0 || this.output_formats.length === 0) return;
 
@@ -650,6 +767,18 @@
                     this.isComplete = false; // Ensure results aren't shown during processing
                     this.error = null; // Clear previous errors
                     this.results = null; // Clear previous results
+
+                    // Show a processing estimate
+                    let estimatedTime = "a few seconds";
+                    if (this.variations_mode) {
+                        estimatedTime = "up to a minute";
+                        if (this.selected_formats.length > 10) {
+                            estimatedTime = "several minutes";
+                        }
+                    } else if (this.selected_formats.length > 10) {
+                        estimatedTime = "about a minute";
+                    }
+                    console.log(`Processing estimate: ${estimatedTime}`);
 
                     const formData = new FormData();
                     formData.append('file', this.file);
@@ -663,10 +792,8 @@
                     this.selected_formats.forEach(format => formData.append('selected_formats', format));
                     this.output_formats.forEach(format => formData.append('output_formats', format));
 
-                    // Append variations mode
+                    // Append variations mode and smart fill option
                     formData.append('variations_mode', this.variations_mode);
-
-                    // Append fill_white_with_prominent
                     formData.append('fill_white_with_prominent', this.fill_white_with_prominent);
 
                     fetch('/upload', {
@@ -675,11 +802,9 @@
                     })
                     .then(response => {
                         if (!response.ok) {
-                            // Try to parse error JSON from backend
                             return response.json().then(errData => {
                                 throw new Error(errData.error || `HTTP error ${response.status}`);
                             }).catch(parseErr => {
-                                // Fallback if error JSON parsing fails
                                 throw new Error(`HTTP error ${response.status}`);
                             });
                         }
@@ -688,18 +813,27 @@
                     .then(data => {
                         if (data.success) {
                             this.results = data.results;
-                            // Store analysis for smart background fill feature
                             this.analysis = data.results.analysis || null;
                             this.isComplete = true;
+                            
+                            // Track metrics (could be sent to a server)
+                            const metrics = {
+                                formats: this.selected_formats.length,
+                                variations: this.variations_mode,
+                                outputTypes: this.output_formats.length,
+                                imageSize: this.fileInfo.size,
+                                processingOptions: Object.entries(this.options).filter(([_, v]) => v).map(([k]) => k)
+                            };
+                            console.log('Generation metrics:', metrics);
                         } else {
                             this.error = data.error || 'An unknown error occurred during processing.';
-                            this.isComplete = true; // Mark as complete even with error to show message
+                            this.isComplete = true;
                         }
                     })
                     .catch(error => {
                         console.error('Upload Error:', error);
                         this.error = error.message || 'Network error or server issue. Please try again.';
-                        this.isComplete = true; // Mark as complete to show the error message
+                        this.isComplete = true;
                     })
                     .finally(() => {
                         this.isProcessing = false;
@@ -710,4 +844,3 @@
     </script>
 </body>
 </html>
-``` 
