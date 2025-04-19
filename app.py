@@ -1,6 +1,7 @@
 import os
 import json
 import zipfile
+import time
 import io
 import uuid
 import tempfile
@@ -143,7 +144,7 @@ def darken_color(color, factor=0.7):
 
 def create_radial_gradient(size, center_color, edge_color):
     width, height = size
-    gradient = Image.new('RGBA', (width, height), edge_color + (255,))
+    gradient = Image.new('RGBA', (width, height), tuple(edge_color) + (255,))
     cx, cy = width // 2, height // 2
     max_radius = (width**2 + height**2) ** 0.5 / 2
     arr = np.zeros((height, width, 4), dtype=np.uint8)
