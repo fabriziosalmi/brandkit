@@ -64,9 +64,122 @@
         .loading-step {
             animation: fadeIn 0.3s ease-in-out;
         }
+        
+        /* Enhanced drop zone highlight */
+        .drop-zone-highlight {
+            animation: pulse 2s infinite;
+            border-width: 3px;
+        }
+        @keyframes pulse {
+            0% { border-color: #cbd5e0; background-color: transparent; }
+            50% { border-color: #3b82f6; background-color: rgba(219, 234, 254, 0.3); }
+            100% { border-color: #cbd5e0; background-color: transparent; }
+        }
+        
+        /* Format search highlight */
+        .format-highlight {
+            background-color: rgba(59, 130, 246, 0.1);
+            border-radius: 0.25rem;
+        }
+        
+        /* Recent uploads section */
+        .recent-uploads {
+            display: flex;
+            overflow-x: auto;
+            gap: 1rem;
+            padding: 0.5rem 0;
+            scroll-snap-type: x mandatory;
+        }
+        .recent-upload-item {
+            scroll-snap-align: start;
+            flex: 0 0 auto;
+            width: 100px;
+            text-align: center;
+            position: relative;
+        }
+        .recent-upload-image {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 0.5rem;
+            border: 2px solid #e5e7eb;
+            transition: all 0.2s;
+        }
+        .recent-upload-image:hover {
+            border-color: #3b82f6;
+            transform: translateY(-2px);
+        }
+        
+        /* Progress bar */
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background-color: #e5e7eb;
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            border-radius: 9999px;
+            background-color: #3b82f6;
+            transition: width 0.3s ease;
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+        }
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: auto;
+            min-width: 120px;
+            white-space: nowrap;
+            background-color: #1f2937;
+            color: white;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.75rem;
+            pointer-events: none;
+        }
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Format pills */
+        .format-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            background: #f3f4f6;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #374151;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .format-pill:hover {
+            background: #e5e7eb;
+        }
+        .format-pill-selected {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .format-pill-selected:hover {
+            background: #bfdbfe;
+        }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 min-h-screen font-sans">
+<body class="bg-gradient-to-br from-blue-100 via-purple-400 to-pink-500 min-h-screen font-sans">
     <div class="container mx-auto px-4 py-8" x-data="appData()" x-cloak>
         <!-- Header -->
         <header class="mb-10 text-center">
@@ -116,6 +229,18 @@
                         <div x-show="error" class="mt-3 text-sm text-red-600 text-center" x-text="error"></div>
                     </div>
 
+                    <!-- Recent Uploads Section (if available) -->
+                    <div x-show="recentUploads.length > 0" class="w-full max-w-xl mt-4">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Recent uploads:</h3>
+                        <div class="recent-uploads">
+                            <template x-for="(upload, index) in recentUploads" :key="index">
+                                <div class="recent-upload-item">
+                                    <img @click="loadRecentUpload(upload)" :src="upload.previewUrl" class="recent-upload-image" :alt="upload.filename">
+                                    <p class="text-xs mt-1 truncate" x-text="upload.filename"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
                     <!-- Options Section Below Upload -->
                     <div class="w-full max-w-4xl mt-8 border-t pt-8">
                         <h2 class="text-2xl font-semibold text-gray-700 mb-6 text-center">2. Configure Options</h2>
@@ -241,9 +366,30 @@
                                              <button type="button" @click="clearAllFormats()" class="text-xs text-gray-500 hover:text-gray-700">None</button>
                                          </div>
                                      </div>
+                                     <!-- Format Search Input -->
+                                     <div class="mb-3 relative">
+                                         <div class="relative">
+                                             <input 
+                                                 type="text" 
+                                                 x-model="formatSearchQuery" 
+                                                 placeholder="Search formats..." 
+                                                 class="w-full p-2 pr-8 rounded-md border border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                                 @keydown.escape="formatSearchQuery = ''"
+                                             >
+                                             <button 
+                                                 x-show="formatSearchQuery" 
+                                                 @click="formatSearchQuery = ''" 
+                                                 class="absolute right-2 top-2 text-gray-400 hover:text-gray-600"
+                                             >
+                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                 </svg>
+                                             </button>
+                                         </div>
+                                     </div>
                                      <!-- Group formats by category -->
                                      <div class="space-y-3 max-h-80 overflow-y-auto pr-2 pt-2 format-list">
-                                        <template x-for="(categoryFormats, categoryName) in groupedFormats" :key="categoryName">
+                                        <template x-for="(categoryFormats, categoryName) in filteredFormats || groupedFormats" :key="categoryName">
                                             <div class="pt-2">
                                                 <h4 class="text-sm font-semibold text-gray-600 mb-1" x-text="categoryName"></h4>
                                                 <div class="grid grid-cols-2 gap-x-4 gap-y-1 pl-2">
@@ -672,6 +818,40 @@
                 formatPresets: formatPresets,
                 quality: 95,
                 strip_metadata: false,
+                formatSearchQuery: '',
+                recentUploads: [],
+                processingStep: 1,
+                processingProgress: 0,
+                
+                // Filter formats based on search query
+                get filteredFormats() {
+                    const query = this.formatSearchQuery.toLowerCase();
+                    if (!query) return null; // Don't filter if no query
+                    
+                    const results = {};
+                    for (const category in this.groupedFormats) {
+                        const filteredCatFormats = this.groupedFormats[category].filter(formatKey => {
+                            return formatKey.toLowerCase().includes(query) || 
+                                  (this.config.formats[formatKey].description || '').toLowerCase().includes(query) ||
+                                  category.toLowerCase().includes(query);
+                        });
+                        if (filteredCatFormats.length > 0) {
+                            results[category] = filteredCatFormats;
+                        }
+                    }
+                    
+                    // Also search ungrouped formats
+                    const filteredUngrouped = this.ungroupedFormats.filter(formatKey => {
+                        return formatKey.toLowerCase().includes(query) || 
+                              (this.config.formats[formatKey].description || '').toLowerCase().includes(query);
+                    });
+                    
+                    if (filteredUngrouped.length > 0) {
+                        results['Other'] = filteredUngrouped;
+                    }
+                    
+                    return Object.keys(results).length > 0 ? results : null;
+                },
 
                 init() {
                     // Add 'ico' to output formats if 'favicon' is initially selected
@@ -844,6 +1024,9 @@
                             if (data.analysis.has_white_area && data.analysis.white_area_ratio > 0.3) {
                                 this.fill_white_with_prominent = true;
                             }
+                            
+                            // Store in recent uploads if not already there
+                            this.addToRecentUploads();
                         } else {
                             console.warn('Image analysis failed:', data.error);
                             this.analysis = null;
@@ -853,6 +1036,58 @@
                         console.error('Error analyzing image:', err);
                         this.analysis = null;
                     });
+                },
+                
+                // Recent uploads management
+                addToRecentUploads() {
+                    if (!this.file || !this.preview) return;
+                    
+                    // Create a recent upload object
+                    const recentUpload = {
+                        filename: this.fileInfo.name,
+                        filetype: this.fileInfo.type,
+                        filesize: this.fileInfo.size,
+                        dimensions: this.fileInfo.dimensions,
+                        previewUrl: this.preview,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    // Try to load existing uploads from localStorage
+                    let existingUploads = [];
+                    try {
+                        const storedUploads = localStorage.getItem('brandkit_recent_uploads');
+                        if (storedUploads) {
+                            existingUploads = JSON.parse(storedUploads);
+                        }
+                    } catch (e) {
+                        console.warn('Failed to load recent uploads from localStorage', e);
+                    }
+                    
+                    // Check if this file is already in recents (by filename)
+                    const existingIndex = existingUploads.findIndex(upload => 
+                        upload.filename === recentUpload.filename && 
+                        upload.dimensions === recentUpload.dimensions
+                    );
+                    
+                    // Update or add to the uploads list
+                    if (existingIndex >= 0) {
+                        existingUploads[existingIndex] = recentUpload;
+                    } else {
+                        existingUploads.unshift(recentUpload);
+                    }
+                    
+                    // Keep only recent 5 uploads
+                    existingUploads = existingUploads.slice(0, 5);
+                    
+                    // Update recentUploads in the app
+                    this.recentUploads = existingUploads;
+                    
+                    // Save back to localStorage
+                    try {
+                        localStorage.setItem('brandkit_recent_uploads', JSON.stringify(existingUploads));
+                    } catch (e) {
+                        console.warn('Failed to save recent uploads to localStorage', e);
+                    }
                 },
 
                 applyFormatPreset(formats) {
@@ -945,6 +1180,18 @@
                     .finally(() => {
                         this.isProcessing = false;
                     });
+                },
+
+                loadRecentUpload(upload) {
+                    this.preview = upload.previewUrl;
+                    this.fileInfo = {
+                        name: upload.filename,
+                        type: upload.filetype,
+                        size: upload.filesize,
+                        dimensions: upload.dimensions
+                    };
+                    this.file = null; // Clear file input
+                    this.error = null; // Clear previous error
                 }
             }
         }
