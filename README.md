@@ -19,11 +19,14 @@ BrandKit is a web application designed to streamline the creation of brand asset
 *   **Image Preprocessing:** Apply effects like grayscale, B&W, inversion, hue shifts, temperature adjustments, contrast enhancement, blur, and watermarking *before* generating assets.
 *   **Color Variations:** Optionally generate multiple thematic variations (e.g., Grayscale, Inverted, Warm, Cool) for each selected format.
 *   **Format Presets:** Quickly select common format combinations for specific use cases (Social Media Pack, Website Essentials, etc.).
+*   **Format Search:** Easily find specific formats using the search functionality.
+*   **Recent Uploads:** Quickly access your recently used images through the Recent Uploads section.
 *   **Image Optimization:** Control compression quality and strip metadata (EXIF) for privacy and reduced file sizes.
 *   **Multiple Output Types:** Export assets as PNG, JPG, WEBP, and ICO (for favicons).
 *   **Bulk Download:** Download all generated assets conveniently in a single zip file.
 *   **Keyboard Shortcuts:** Power-user features for faster workflows.
-*   **Intelligent Caching:** Improves performance for repeat operations.
+*   **Intelligent Caching:** Improves performance for repeat operations and similar images.
+*   **Visual Processing Feedback:** Detailed progress information during asset generation.
 *   **Modern UI:** Clean and responsive interface built with Tailwind CSS and Alpine.js.
 *   **Containerized:** Easy setup and deployment using Docker and Docker Compose.
 
@@ -35,6 +38,7 @@ BrandKit is a web application designed to streamline the creation of brand asset
 *   **Image Processing:** Pillow (Python Imaging Library)
 *   **Frontend:** Alpine.js, Tailwind CSS
 *   **Containerization:** Docker, Docker Compose
+*   **Performance:** Intelligent caching and memory optimization
 
 ---
 
@@ -51,7 +55,7 @@ BrandKit is a web application designed to streamline the creation of brand asset
     ```
 3.  **Open in your browser:**
 
-    Visit [http://localhost:5000](http://localhost:5000)
+    Visit [http://localhost:8000](http://localhost:8000)
 
 4.  **Upload an image, select formats/options, and generate your brand kit!**
 
@@ -59,9 +63,9 @@ BrandKit is a web application designed to streamline the creation of brand asset
 
 ## Usage Guide
 
-1.  **Upload:** Drag and drop an image file (PNG, JPG, GIF, WEBP, max 16MB) onto the upload area, or click to select a file.
+1.  **Upload:** Drag and drop an image file (PNG, JPG, GIF, WEBP, max 16MB) onto the upload area, or click to select a file. You can also select from your recent uploads.
 2.  **Configure Preprocessing (Optional):** Use the toggles and sliders under "Preprocessing" to apply effects like grayscale, blur, or watermarking to the source image *before* resizing.
-3.  **Select Formats:** Check the boxes for the desired output dimensions or use the Format Presets buttons for quick selection of common combinations (e.g., Social Media Pack, Website Essentials).
+3.  **Select Formats:** Check the boxes for the desired output dimensions or use the Format Presets buttons for quick selection of common combinations (e.g., Social Media Pack, Website Essentials). Use the format search to quickly find specific formats.
 4.  **Choose Output Types:** Select the file types you need (PNG, JPG, WEBP, ICO). Note: ICO is only generated if the `favicon` format is selected.
 5.  **Advanced Options (Optional):** Expand the Advanced Options panel to control image quality and metadata settings.
 6.  **Enable Variations (Optional):** Toggle "Generate Color Variations" to create multiple styled versions (Grayscale, Inverted, Hue Shifted, etc.) for *each* selected format.
@@ -79,8 +83,19 @@ Press `Shift+?` anywhere in the application to view the available keyboard short
 * `Space` - Open file selector when focused on upload area
 * `Ctrl+Enter` or `⌘+Enter` - Generate assets (submit form)
 * `Escape` - Reset form or close dialogs
-* `Alt+A` - Select all formats
-* `Alt+N` - Clear all formats
+
+View complete shortcut documentation in [KEYBOARD_SHORTCUTS.md](KEYBOARD_SHORTCUTS.md)
+
+---
+
+## Performance Features
+
+BrandKit includes several performance optimizations:
+
+* **Image Caching:** Processed images are cached and reused when possible, reducing processing time for frequently used formats
+* **Disk Space Management:** Automatic cleanup of old files to prevent disk space issues
+* **Memory Optimization:** Intelligent garbage collection and memory management for stability
+* **Processing Progress:** Visual feedback on processing steps and progress
 
 ---
 
@@ -104,7 +119,10 @@ requirements.txt      # Python dependencies
 Dockerfile            # Docker build
 entrypoint.sh         # Entrypoint for Docker
 static/               # Static files (uploads, css, js)
+  uploads/            # Generated images
+    cache/            # Performance cache for processed images
 templates/index.html  # Main UI
+KEYBOARD_SHORTCUTS.md # Shortcut documentation
 ```
 
 ---
@@ -118,7 +136,7 @@ templates/index.html  # Main UI
   pip install -r requirements.txt
   python app.py
   ```
-- App runs at [http://localhost:5000](http://localhost:5000)
+- App runs at [http://localhost:8000](http://localhost:8000)
 
 ---
 
@@ -130,12 +148,24 @@ templates/index.html  # Main UI
   ```
 - **Run container:**
   ```sh
-  docker run -p 5000:5000 -v $(pwd)/static/uploads:/app/static/uploads brandkit
+  docker run -p 8000:8000 -v $(pwd)/static/uploads:/app/static/uploads brandkit
   ```
 - **Stop all:**
   ```sh
   docker-compose down
   ```
+
+---
+
+## Security Features
+
+BrandKit includes several security enhancements:
+
+* **Content Security Policy (CSP):** Protection against XSS and other common web vulnerabilities
+* **CSRF Protection:** Protection from cross-site request forgery attacks
+* **Rate Limiting:** Protection against abuse and DoS attacks
+* **Metadata Stripping:** Option to remove EXIF data for privacy protection
+* **Input Validation:** Thorough validation of all user inputs
 
 ---
 
@@ -158,7 +188,7 @@ You can integrate Caddy or Nginx into your `docker-compose.yml`.
 services:
   brandkit:
     # ... your brandkit service definition ...
-    # Ensure it exposes the port (e.g., 5000) internally
+    # Ensure it exposes the port (e.g., 8000) internally
     # networks:
     #   - webproxy
 
@@ -190,7 +220,7 @@ volumes:
 # Caddyfile
 your-domain.com {
     # Automatic HTTPS via Let's Encrypt
-    reverse_proxy brandkit:5000 # Proxy requests to the brandkit service on port 5000
+    reverse_proxy brandkit:8000 # Proxy requests to the brandkit service on port 8000
 }
 ```
 
@@ -239,6 +269,8 @@ This setup ensures only authenticated users can reach your Brand Kit Generator i
 
 ## Troubleshooting
 - If you get permission errors on uploads, ensure `static/uploads` is writable.
+- If CSRF errors occur, check that the application has the proper FLASK_SECRET_KEY set.
+- For CSP issues, check browser developer console and adjust security settings.
 - For custom domains/SSL, use a reverse proxy (e.g., Nginx, Caddy).
 - For development, set `FLASK_ENV=development` in docker-compose or your shell.
 
