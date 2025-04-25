@@ -8,6 +8,11 @@ BrandKit is a web application designed to streamline the creation of brand asset
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Docker Hub](https://img.shields.io/badge/Docker%20Hub-ready-blue?logo=docker)](https://hub.docker.com/r/your-dockerhub-username/brandkit) <!-- Replace with your Docker Hub badge -->
 
+## Screenshots
+
+![screenshot1](https://github.com/fabriziosalmi/brandkit/blob/main/screenshot_1.png?raw=true)
+![screenshot2](https://github.com/fabriziosalmi/brandkit/blob/main/screenshot_2.png?raw=true)
+
 ---
 
 ## Key Features
