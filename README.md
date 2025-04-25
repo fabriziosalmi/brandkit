@@ -51,7 +51,7 @@ BrandKit is a web application designed to streamline the creation of brand asset
 
 1.  **Clone the repository:**
     ```sh
-    git clone https://github.com/fabriziosalmi/brandkit.git # Replace with your repo URL
+    git clone https://github.com/fabriziosalmi/brandkit.git
     cd brandkit
     ```
 2.  **Build and run with Docker Compose:**
