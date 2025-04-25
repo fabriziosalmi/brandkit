@@ -684,6 +684,9 @@ def cleanup_old_files(max_age_hours=24):
     current_time = datetime.now()
     upload_dir = app.config['UPLOAD_FOLDER']
     
+    deleted_count = 0
+    total_bytes_recovered = 0
+    
     try:
         for filename in os.listdir(upload_dir):
             # Skip the README.md file
@@ -701,8 +704,11 @@ def cleanup_old_files(max_age_hours=24):
                 # Remove files older than max_age_hours
                 if age_hours > max_age_hours:
                     try:
+                        file_size = os.path.getsize(file_path)
                         os.remove(file_path)
-                        print(f"Removed old file: {filename}")
+                        deleted_count += 1
+                        total_bytes_recovered += file_size
+                        print(f"Removed old file: {filename} ({file_size / 1024:.1f} KB)")
                     except Exception as e:
                         print(f"Error removing file {filename}: {e}")
     except Exception as e:
@@ -720,12 +726,18 @@ def cleanup_old_files(max_age_hours=24):
                     
                     if age_hours > max_age_hours:
                         try:
+                            file_size = os.path.getsize(file_path)
                             os.remove(file_path)
-                            print(f"Removed old cached file: {filename}")
+                            deleted_count += 1
+                            total_bytes_recovered += file_size
+                            print(f"Removed old cached file: {filename} ({file_size / 1024:.1f} KB)")
                         except Exception as e:
                             print(f"Error removing cached file {filename}: {e}")
         except Exception as e:
             print(f"Error during cache cleanup: {e}")
+            
+    print(f"Cleanup completed: {deleted_count} files removed, {total_bytes_recovered / (1024*1024):.2f} MB recovered")
+    return {"files_deleted": deleted_count, "space_recovered_mb": total_bytes_recovered / (1024*1024)}
 
 # Add a memory manager to limit RAM usage
 def cleanup_memory():
