@@ -12,7 +12,7 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, s
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageEnhance, ImageFilter, ImageDraw, ImageFont, ImageOps
 import numpy as np
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, generate_csrf
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_caching import Cache
@@ -440,69 +440,180 @@ def save_to_cache(img, cache_key, width, height):
         print(f"Error saving to cache: {e}")
 
 def generate_formats(original_path, filename_without_ext, selected_formats, output_formats, preprocessing_options, variations_mode=False, fill_white_with_prominent=True, quality=95, strip_metadata=False):
+    """Generate image formats with comprehensive error handling"""
     config = load_config()
     all_available_formats = config['formats']
     formats_to_generate = {k: v for k, v in all_available_formats.items() if k in selected_formats}
     results = {}
     
     try:
-        original = Image.open(original_path)
-        
-        # Convert to RGBA to ensure consistent processing
-        if original.mode != 'RGBA':
-            original = original.convert('RGBA')
+        # Open and validate original image
+        try:
+            original = Image.open(original_path)
+            # Convert to RGBA to ensure consistent processing
+            if original.mode != 'RGBA':
+                original = original.convert('RGBA')
+        except Exception as e:
+            print(f"Error opening image: {e}")
+            import traceback
+            traceback.print_exc()
+            raise ValueError(f"Could not open or process the uploaded image: {str(e)}")
             
-    except Exception as e:
-        print(f"Error opening image: {e}")
-        raise ValueError("Could not open or process the uploaded image.")
+        # Check if image is square for smart fill feature
+        is_square = original.width == original.height
         
-    # Check if image is square for smart fill feature
-    is_square = original.width == original.height
-    
-    # Get prominent color for smart fill
-    try:
-        prominent_color = get_prominent_color(original)
-    except Exception as e:
-        print(f"Error getting prominent color: {e}")
-        prominent_color = [200, 200, 200]  # Default color
-    
-    # Create a hash of preprocessing options for cache keys
-    cache_key = hashlib.md5(
-        (
-            f"{os.path.basename(original_path)}_" + 
-            f"{json.dumps(preprocessing_options, sort_keys=True)}_" +
-            f"{fill_white_with_prominent}"
-        ).encode()
-    ).hexdigest()
-    
-    # Process in variations mode
-    if variations_mode:
-        variations_results = {}
-        variation_definitions = generate_variations()
+        # Get prominent color for smart fill
+        try:
+            prominent_color = get_prominent_color(original)
+        except Exception as e:
+            print(f"Error getting prominent color: {e}")
+            import traceback
+            traceback.print_exc()
+            prominent_color = [200, 200, 200]  # Default color
         
-        for variation in variation_definitions:
-            variation_label = variation['label']
-            # Combine base options with variation-specific options
-            combined_options = preprocessing_options.copy()
-            for opt_key, opt_value in variation['opts'].items():
-                combined_options[opt_key] = opt_value
+        # Process in variations mode
+        if variations_mode:
+            variations_results = {}
+            variation_definitions = generate_variations()
             
+            for variation in variation_definitions:
+                variation_label = variation['label']
+                try:
+                    # Combine base options with variation-specific options
+                    combined_options = preprocessing_options.copy()
+                    for opt_key, opt_value in variation['opts'].items():
+                        combined_options[opt_key] = opt_value
+                    
+                    # Process the image with this variation's options
+                    variation_img = preprocess_image(original.copy(), combined_options)
+                    
+                    # Generate formats for this variation
+                    variation_data = {}
+                    
+                    for format_name, format_config in formats_to_generate.items():
+                        try:
+                            dimensions = (format_config['width'], format_config['height'])
+                            img_copy = variation_img.copy()
+                            
+                            # Resize the image maintaining aspect ratio
+                            img_copy.thumbnail(dimensions, Image.LANCZOS)
+                            
+                            # Apply smart fill if appropriate
+                            if not is_square and dimensions[0] != dimensions[1] and fill_white_with_prominent:
+                                center_color = darken_color(prominent_color, 0.7)
+                                edge_color = prominent_color
+                                bg = create_radial_gradient(dimensions, center_color, edge_color)
+                                paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                                bg.paste(img_copy, paste_pos, img_copy)
+                                new_img = bg
+                            else:
+                                # Center the image on a transparent background
+                                new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
+                                paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                                
+                                if img_copy.mode == 'RGBA':
+                                    new_img.paste(img_copy, paste_pos, img_copy)
+                                else:
+                                    new_img.paste(img_copy, paste_pos)
+                            
+                            # Save in each requested output format
+                            format_results = {}
+                            for output_format in output_formats:
+                                try:
+                                    output_format_lower = output_format.lower()
+                                    
+                                    # Skip ICO format except for favicon
+                                    if output_format_lower == 'ico' and format_name != 'favicon':
+                                        continue
+                                    
+                                    variation_filename = f"{filename_without_ext}_{variation_label}_{format_name}.{output_format_lower}"
+                                    output_path = os.path.join(app.config['UPLOAD_FOLDER'], variation_filename)
+                                    
+                                    # Apply format-specific optimizations
+                                    save_img, save_opts = optimize_image(new_img, output_format, quality, strip_metadata)
+                                    
+                                    # Save with optimized parameters
+                                    save_img.save(output_path, **save_opts)
+                                    
+                                    format_results[output_format] = {
+                                        'path': output_path,
+                                        'url': f"/{app.config['UPLOAD_FOLDER']}/{variation_filename}",
+                                    }
+                                except Exception as e:
+                                    print(f"Error saving {variation_label} {format_name} as {output_format}: {e}")
+                                    import traceback
+                                    traceback.print_exc()
+                            
+                            # Add to results if any formats were successfully saved
+                            if format_results:
+                                variation_data[format_name] = {
+                                    'outputs': format_results,
+                                    'dimensions': dimensions,
+                                    'description': format_config.get('description', '')
+                                }
+                        except Exception as e:
+                            print(f"Error processing format {format_name} for variation {variation_label}: {e}")
+                            import traceback
+                            traceback.print_exc()
+                    
+                    if variation_data:
+                        variations_results[variation_label] = variation_data
+                
+                except Exception as e:
+                    print(f"Error processing variation {variation_label}: {e}")
+                    import traceback
+                    traceback.print_exc()
+            
+            # If we have any variations, add them to the results
+            if variations_results:
+                results['variations'] = variations_results
+            
+            # Also generate favicon in variations mode if requested
+            if 'favicon' in selected_formats and 'ico' in output_formats:
+                try:
+                    # Use the "Original" variation settings for favicon
+                    original_opts = next((v['opts'] for v in variation_definitions if v['label'] == 'Original'), {})
+                    favicon_img = preprocess_image(original.copy(), original_opts)
+                    results['favicon_ico'] = create_favicon(favicon_img, filename_without_ext)
+                except Exception as e:
+                    print(f"Error creating favicon in variations mode: {e}")
+                    import traceback
+                    traceback.print_exc()
+        
+        # Process in standard mode
+        else:
             try:
-                # Process the image with this variation's options
-                variation_img = preprocess_image(original.copy(), combined_options)
+                processed_image = preprocess_image(original.copy(), preprocessing_options)
+            except Exception as e:
+                print(f"Error during initial preprocessing: {e}")
+                import traceback
+                traceback.print_exc()
+                raise ValueError(f"Could not preprocess the image with selected options: {str(e)}")
                 
-                # Generate formats for this variation
-                variation_data = {}
-                
-                for format_name, format_config in formats_to_generate.items():
+            # Generate favicon if requested
+            if 'favicon' in selected_formats and 'ico' in output_formats:
+                try:
+                    results['favicon_ico'] = create_favicon(processed_image.copy(), filename_without_ext)
+                except Exception as e:
+                    print(f"Error creating favicon: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    
+            # Process each selected format
+            for format_name, format_config in formats_to_generate.items():
+                try:
+                    # Skip favicon if already created
+                    if format_name == 'favicon' and 'favicon_ico' in results:
+                        continue
+                        
                     dimensions = (format_config['width'], format_config['height'])
-                    img_copy = variation_img.copy()
+                    img_copy = processed_image.copy()
                     
                     # Resize the image maintaining aspect ratio
                     img_copy.thumbnail(dimensions, Image.LANCZOS)
                     
                     # Apply smart fill if appropriate
-                    if is_square and dimensions[0] != dimensions[1] and fill_white_with_prominent:
+                    if not is_square and dimensions[0] != dimensions[1] and fill_white_with_prominent:
                         center_color = darken_color(prominent_color, 0.7)
                         edge_color = prominent_color
                         bg = create_radial_gradient(dimensions, center_color, edge_color)
@@ -518,20 +629,20 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
                             new_img.paste(img_copy, paste_pos, img_copy)
                         else:
                             new_img.paste(img_copy, paste_pos)
-                    
+                            
                     # Save in each requested output format
                     format_results = {}
                     for output_format in output_formats:
-                        output_format_lower = output_format.lower()
-                        
-                        # Skip ICO format except for favicon
-                        if output_format_lower == 'ico' and format_name != 'favicon':
-                            continue
-                        
-                        variation_filename = f"{filename_without_ext}_{variation_label}_{format_name}.{output_format_lower}"
-                        output_path = os.path.join(app.config['UPLOAD_FOLDER'], variation_filename)
-                        
                         try:
+                            output_format_lower = output_format.lower()
+                            
+                            # Skip ICO format except for favicon
+                            if output_format_lower == 'ico' and format_name != 'favicon':
+                                continue
+                                
+                            output_filename = f"{filename_without_ext}_{format_name}.{output_format_lower}"
+                            output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+                            
                             # Apply format-specific optimizations
                             save_img, save_opts = optimize_image(new_img, output_format, quality, strip_metadata)
                             
@@ -540,119 +651,32 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
                             
                             format_results[output_format] = {
                                 'path': output_path,
-                                'url': f"/{app.config['UPLOAD_FOLDER']}/{variation_filename}",
+                                'url': f"/{app.config['UPLOAD_FOLDER']}/{output_filename}",
                             }
                         except Exception as e:
-                            print(f"Error saving {variation_label} {format_name} as {output_format}: {e}")
-                    
+                            print(f"Error saving {format_name} as {output_format}: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            
                     # Add to results if any formats were successfully saved
                     if format_results:
-                        variation_data[format_name] = {
+                        results[format_name] = {
                             'outputs': format_results,
                             'dimensions': dimensions,
                             'description': format_config.get('description', '')
                         }
-                
-                if variation_data:
-                    variations_results[variation_label] = variation_data
-                
-            except Exception as e:
-                print(f"Error processing variation {variation_label}: {e}")
-        
-        # If we have any variations, add them to the results
-        if variations_results:
-            results['variations'] = variations_results
-        
-        # Also generate favicon in variations mode if requested
-        if 'favicon' in selected_formats and 'ico' in output_formats:
-            try:
-                # Use the "Original" variation settings for favicon
-                original_opts = next((v['opts'] for v in variation_definitions if v['label'] == 'Original'), {})
-                favicon_img = preprocess_image(original.copy(), original_opts)
-                results['favicon_ico'] = create_favicon(favicon_img, filename_without_ext)
-            except Exception as e:
-                print(f"Error creating favicon in variations mode: {e}")
-    
-    # Process in standard mode
-    else:
-        try:
-            processed_image = preprocess_image(original.copy(), preprocessing_options)
-        except Exception as e:
-            print(f"Error during initial preprocessing: {e}")
-            raise ValueError("Could not preprocess the image with selected options.")
-            
-        # Generate favicon if requested
-        if 'favicon' in selected_formats and 'ico' in output_formats:
-            try:
-                results['favicon_ico'] = create_favicon(processed_image.copy(), filename_without_ext)
-            except Exception as e:
-                print(f"Error creating favicon: {e}")
-                
-        # Process each selected format
-        for format_name, format_config in formats_to_generate.items():
-            # Skip favicon if already created
-            if format_name == 'favicon' and 'favicon_ico' in results:
-                continue
-                
-            dimensions = (format_config['width'], format_config['height'])
-            img_copy = processed_image.copy()
-            
-            # Resize the image maintaining aspect ratio
-            img_copy.thumbnail(dimensions, Image.LANCZOS)
-            
-            # Apply smart fill if appropriate
-            if is_square and dimensions[0] != dimensions[1] and fill_white_with_prominent:
-                center_color = darken_color(prominent_color, 0.7)
-                edge_color = prominent_color
-                bg = create_radial_gradient(dimensions, center_color, edge_color)
-                paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
-                bg.paste(img_copy, paste_pos, img_copy)
-                new_img = bg
-            else:
-                # Center the image on a transparent background
-                new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
-                paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
-                
-                if img_copy.mode == 'RGBA':
-                    new_img.paste(img_copy, paste_pos, img_copy)
-                else:
-                    new_img.paste(img_copy, paste_pos)
-                    
-            # Save in each requested output format
-            format_results = {}
-            for output_format in output_formats:
-                output_format_lower = output_format.lower()
-                
-                # Skip ICO format except for favicon
-                if output_format_lower == 'ico' and format_name != 'favicon':
-                    continue
-                    
-                output_filename = f"{filename_without_ext}_{format_name}.{output_format_lower}"
-                output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-                
-                try:
-                    # Apply format-specific optimizations
-                    save_img, save_opts = optimize_image(new_img, output_format, quality, strip_metadata)
-                    
-                    # Save with optimized parameters
-                    save_img.save(output_path, **save_opts)
-                    
-                    format_results[output_format] = {
-                        'path': output_path,
-                        'url': f"/{app.config['UPLOAD_FOLDER']}/{output_filename}",
-                    }
                 except Exception as e:
-                    print(f"Error saving {format_name} as {output_format}: {e}")
-                    
-            # Add to results if any formats were successfully saved
-            if format_results:
-                results[format_name] = {
-                    'outputs': format_results,
-                    'dimensions': dimensions,
-                    'description': format_config.get('description', '')
-                }
+                    print(f"Error processing format {format_name}: {e}")
+                    import traceback
+                    traceback.print_exc()
                 
-    return results
+        return results
+        
+    except Exception as e:
+        print(f"Unhandled error in generate_formats: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 # Add a cleanup function to remove old files (can be called periodically)
 def cleanup_old_files(max_age_hours=24):
@@ -725,54 +749,106 @@ def cleanup_memory():
 @app.route('/')
 def index():
     config = load_config()
-    return render_template('index.html', config=config, max_upload_mb=app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024))
+    return render_template('index.html', config=config, max_upload_mb=app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024), csrf_token=generate_csrf())
 
 @app.route('/analyze', methods=['POST'])
 def analyze_image_endpoint():
-    if 'file' not in request.files:
-        return jsonify({'success': False, 'error': 'No file part'}), 400
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'success': False, 'error': 'No selected file'}), 400
-    if file and allowed_file(file.filename):
+    """Analyze an uploaded image to detect prominent colors and image characteristics"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file part'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No selected file'}), 400
+        
+        # Check file type
+        if not allowed_file(file.filename):
+            return jsonify({'success': False, 'error': 'File type not allowed'}), 400
+        
+        # Save temp file
+        temp_file = None
+        temp_file_path = None
         try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as temp_file:
-                file.save(temp_file.name)
-                temp_file_path = temp_file.name
-            try:
-                img_for_analysis = Image.open(temp_file_path)
-                prominent_color = get_prominent_color(img_for_analysis)
-                has_white_area, white_area_ratio = has_significant_white_area(img_for_analysis)
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1])
+            temp_file_path = temp_file.name
+            file.save(temp_file_path)
+            temp_file.close()
+
+            # Process image for analysis
+            with Image.open(temp_file_path) as img:
+                # Convert to RGBA to ensure consistent processing
+                if img.mode != 'RGBA':
+                    img = img.convert('RGBA')
+                
+                # Get prominent color
+                prominent_color = [200, 200, 200]  # Default fallback
+                try:
+                    prominent_color = get_prominent_color(img)
+                except Exception as e:
+                    print(f"Error getting prominent color: {e}")
+                
+                # Check for white areas
+                has_white_area = False
+                white_area_ratio = 0.0
+                try:
+                    has_white_area, white_area_ratio = has_significant_white_area(img)
+                except Exception as e:
+                    print(f"Error detecting white areas: {e}")
+                
+                # Prepare analysis results
                 analysis_results = {
-                    'prominent_color': prominent_color,  # Already in list format
+                    'prominent_color': prominent_color,
                     'has_white_area': bool(has_white_area),
                     'white_area_ratio': float(white_area_ratio)
                 }
-                return jsonify({'success': True, 'analysis': analysis_results})
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                print(f"Image analysis failed: {e}")
-                return jsonify({'success': False, 'error': f'Failed to analyze image: {str(e)}'}), 500
-            finally:
-                if temp_file_path and os.path.exists(temp_file_path):
-                    os.unlink(temp_file_path)
+                
+                return jsonify({
+                    'success': True,
+                    'analysis': analysis_results
+                })
+        
         except Exception as e:
             import traceback
             traceback.print_exc()
-            print(f"Error handling analysis request: {e}")
-            return jsonify({'success': False, 'error': f'Server error during analysis: {str(e)}'}), 500
-    else:
-        return jsonify({'success': False, 'error': 'File type not allowed'}), 400
+            print(f"Error analyzing image: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'Error analyzing image: {str(e)}'
+            }), 500
+        
+        finally:
+            # Clean up temp file
+            if temp_file_path and os.path.exists(temp_file_path):
+                try:
+                    os.unlink(temp_file_path)
+                except Exception as e:
+                    print(f"Error removing temp file: {e}")
+    
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"Unexpected error in analyze endpoint: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }), 500
 
 # Create a helper function to ensure dictionaries are JSON serializable
 def ensure_serializable(obj):
+    """Ensure objects can be serialized to JSON by converting special types"""
     if isinstance(obj, dict):
         return {k: ensure_serializable(v) for k, v in obj.items()}
     elif isinstance(obj, (list, tuple)):
         return [ensure_serializable(i) for i in obj]
     elif isinstance(obj, (int, float, str, bool, type(None))):
         return obj
+    elif isinstance(obj, np.ndarray):
+        return ensure_serializable(obj.tolist())
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
     else:
         # Convert any other types to string representation
         return str(obj)

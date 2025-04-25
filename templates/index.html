@@ -825,6 +825,7 @@
                     // Create a form data object
                     const formData = new FormData();
                     formData.append('file', this.file);
+                    formData.append('csrf_token', '{{ csrf_token }}');
                     
                     // Show a subtle loading indicator
                     this.analysis = { analyzing: true };
@@ -883,6 +884,7 @@
 
                     const formData = new FormData();
                     formData.append('file', this.file);
+                    formData.append('csrf_token', '{{ csrf_token }}');
 
                     // Append options
                     Object.entries(this.options).forEach(([key, value]) => {
