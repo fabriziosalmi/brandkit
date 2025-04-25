@@ -281,12 +281,6 @@ This setup ensures only authenticated users can reach your Brand Kit Generator i
 
 ---
 
-## Screenshots
-
-![BrandKit UI Screenshot](https://user-images.githubusercontent.com/your-screenshot.png)
-
----
-
 ## Feedback & Contributions
 
 PRs and issues welcome! For feature requests or bug reports, please open an issue.
