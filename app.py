@@ -439,6 +439,34 @@ def save_to_cache(img, cache_key, width, height):
     except Exception as e:
         print(f"Error saving to cache: {e}")
 
+def get_from_cache(cache_key, width, height):
+    """Try to get a processed image from cache"""
+    cache_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'cache')
+    cache_path = os.path.join(cache_dir, f"{cache_key}_{width}x{height}.png")
+    
+    if os.path.exists(cache_path):
+        try:
+            # Check if file is not too old (24 hours)
+            file_age = datetime.now() - datetime.fromtimestamp(os.path.getmtime(cache_path))
+            if file_age.total_seconds() < 86400:  # 24 hours in seconds
+                return Image.open(cache_path)
+        except Exception as e:
+            print(f"Error retrieving from cache: {e}")
+    
+    return None
+
+def generate_cache_key(original_path, preprocessing_options):
+    """Generate a unique cache key based on the original image and processing options"""
+    try:
+        # Use file hash and options hash as cache key
+        file_hash = hashlib.md5(open(original_path, 'rb').read()).hexdigest()
+        options_hash = hashlib.md5(json.dumps(preprocessing_options, sort_keys=True).encode()).hexdigest()
+        return f"{file_hash}_{options_hash[:10]}"
+    except Exception as e:
+        print(f"Error generating cache key: {e}")
+        # Fallback to a timestamp-based key 
+        return f"fallback_{int(time.time())}"
+
 def generate_formats(original_path, filename_without_ext, selected_formats, output_formats, preprocessing_options, variations_mode=False, fill_white_with_prominent=True, quality=95, strip_metadata=False):
     """Generate image formats with comprehensive error handling"""
     config = load_config()
@@ -495,26 +523,36 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
                             dimensions = (format_config['width'], format_config['height'])
                             img_copy = variation_img.copy()
                             
-                            # Resize the image maintaining aspect ratio
-                            img_copy.thumbnail(dimensions, Image.LANCZOS)
+                            # Check cache first
+                            cache_key = generate_cache_key(original_path, preprocessing_options)
+                            cached_img = get_from_cache(cache_key, dimensions[0], dimensions[1])
                             
-                            # Apply smart fill if appropriate
-                            if not is_square and dimensions[0] != dimensions[1] and fill_white_with_prominent:
-                                center_color = darken_color(prominent_color, 0.7)
-                                edge_color = prominent_color
-                                bg = create_radial_gradient(dimensions, center_color, edge_color)
-                                paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
-                                bg.paste(img_copy, paste_pos, img_copy)
-                                new_img = bg
+                            if cached_img:
+                                new_img = cached_img
                             else:
-                                # Center the image on a transparent background
-                                new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
-                                paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                                # Resize the image maintaining aspect ratio
+                                img_copy.thumbnail(dimensions, Image.LANCZOS)
                                 
-                                if img_copy.mode == 'RGBA':
-                                    new_img.paste(img_copy, paste_pos, img_copy)
+                                # Apply smart fill if appropriate
+                                if not is_square and dimensions[0] != dimensions[1] and fill_white_with_prominent:
+                                    center_color = darken_color(prominent_color, 0.7)
+                                    edge_color = prominent_color
+                                    bg = create_radial_gradient(dimensions, center_color, edge_color)
+                                    paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                                    bg.paste(img_copy, paste_pos, img_copy)
+                                    new_img = bg
                                 else:
-                                    new_img.paste(img_copy, paste_pos)
+                                    # Center the image on a transparent background
+                                    new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
+                                    paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                                    
+                                    if img_copy.mode == 'RGBA':
+                                        new_img.paste(img_copy, paste_pos, img_copy)
+                                    else:
+                                        new_img.paste(img_copy, paste_pos)
+                                        
+                                # Save to cache for future use
+                                save_to_cache(new_img, cache_key, dimensions[0], dimensions[1])
                             
                             # Save in each requested output format
                             format_results = {}
@@ -609,26 +647,36 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
                     dimensions = (format_config['width'], format_config['height'])
                     img_copy = processed_image.copy()
                     
-                    # Resize the image maintaining aspect ratio
-                    img_copy.thumbnail(dimensions, Image.LANCZOS)
+                    # Check cache first
+                    cache_key = generate_cache_key(original_path, preprocessing_options)
+                    cached_img = get_from_cache(cache_key, dimensions[0], dimensions[1])
                     
-                    # Apply smart fill if appropriate
-                    if not is_square and dimensions[0] != dimensions[1] and fill_white_with_prominent:
-                        center_color = darken_color(prominent_color, 0.7)
-                        edge_color = prominent_color
-                        bg = create_radial_gradient(dimensions, center_color, edge_color)
-                        paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
-                        bg.paste(img_copy, paste_pos, img_copy)
-                        new_img = bg
+                    if cached_img:
+                        new_img = cached_img
                     else:
-                        # Center the image on a transparent background
-                        new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
-                        paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                        # Resize the image maintaining aspect ratio
+                        img_copy.thumbnail(dimensions, Image.LANCZOS)
                         
-                        if img_copy.mode == 'RGBA':
-                            new_img.paste(img_copy, paste_pos, img_copy)
+                        # Apply smart fill if appropriate
+                        if not is_square and dimensions[0] != dimensions[1] and fill_white_with_prominent:
+                            center_color = darken_color(prominent_color, 0.7)
+                            edge_color = prominent_color
+                            bg = create_radial_gradient(dimensions, center_color, edge_color)
+                            paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                            bg.paste(img_copy, paste_pos, img_copy)
+                            new_img = bg
                         else:
-                            new_img.paste(img_copy, paste_pos)
+                            # Center the image on a transparent background
+                            new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
+                            paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                            
+                            if img_copy.mode == 'RGBA':
+                                new_img.paste(img_copy, paste_pos, img_copy)
+                            else:
+                                new_img.paste(img_copy, paste_pos)
+                                
+                        # Save to cache for future use
+                        save_to_cache(new_img, cache_key, dimensions[0], dimensions[1])
                             
                     # Save in each requested output format
                     format_results = {}
