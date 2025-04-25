@@ -5,6 +5,26 @@
             "height": 630,
             "description": "Standard website banner"
         },
+        "email_header": {
+            "width": 600,
+            "height": 200,
+            "description": "Email header image"
+        },
+        "presentation_slide": {
+            "width": 1920,
+            "height": 1080,
+            "description": "Presentation slide (16:9)"
+        },
+        "document_header": {
+            "width": 1200,
+            "height": 200,
+            "description": "Document header image"
+        },
+        "ebook_cover": {
+            "width": 1600,
+            "height": 2560,
+            "description": "Ebook cover (portrait)"
+        },
         "webapp": {
             "width": 512,
             "height": 512,
@@ -146,7 +166,9 @@
         "Website": ["website", "hero_mobile", "hero_desktop", "website_banner_mobile", "website_banner_desktop", "background_mobile", "background_desktop", "lightbox_mobile", "lightbox_desktop", "blog_post_mobile", "blog_post_desktop"],
         "Social Media": ["social", "twitter", "instagram", "linkedin", "facebook", "social_icon_small", "social_icon_large"],
         "Mobile": ["mobile", "thumbnail_small", "thumbnail_large"],
-        "General Purpose": ["square_1024"]
+        "General Purpose": ["square_1024"],
+        "Business Documents": ["email_header", "document_header", "presentation_slide"],
+        "Publishing": ["ebook_cover"]
     },
     "output_formats": ["png", "jpg", "webp", "ico"],
     "preprocessing_options": {

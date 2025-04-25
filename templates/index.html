@@ -150,6 +150,33 @@
                                         <!-- Temperature -->
                                         <div class="col-span-2 space-y-2 border-t pt-3">
                                             <label class="block text-sm text-gray-600 mb-1" :for="'temperature'">Temperature: <span x-text="options.temperature > 0 ? '+' + options.temperature : options.temperature" class="font-medium text-gray-800"></span></label>
+                                        </div>
+                                        
+                                        <!-- New Processing Options -->
+                                        <div class="col-span-2 space-y-2 border-t pt-3">
+                                            <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.vignette" class="rounded text-blue-500 focus:ring-blue-400"><span>Vignette</span></label>
+                                            <div x-show="options.vignette" class="pl-6">
+                                                <label class="block text-xs text-gray-500 mb-1" :for="'vignette_strength'">Strength: <span x-text="options.vignette_strength"></span></label>
+                                                <input type="range" id="vignette_strength" x-model="options.vignette_strength" min="0.1" max="1.0" step="0.1">
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-span-2 space-y-2 border-t pt-3">
+                                            <label class="block text-sm text-gray-600 mb-1" :for="'saturation'">Saturation: <span x-text="options.saturation" class="font-medium text-gray-800"></span></label>
+                                            <input type="range" id="saturation" x-model="options.saturation" min="0" max="2" step="0.1">
+                                        </div>
+                                        
+                                        <div class="col-span-2 space-y-2 border-t pt-3">
+                                            <label class="block text-sm text-gray-600 mb-1" :for="'brightness'">Brightness: <span x-text="options.brightness" class="font-medium text-gray-800"></span></label>
+                                            <input type="range" id="brightness" x-model="options.brightness" min="0" max="2" step="0.1">
+                                        </div>
+                                        
+                                        <div class="col-span-2 space-y-2 border-t pt-3">
+                                            <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.sharpen" class="rounded text-blue-500 focus:ring-blue-400"><span>Sharpen</span></label>
+                                            <div x-show="options.sharpen" class="pl-6">
+                                                <label class="block text-xs text-gray-500 mb-1" :for="'sharpen_radius'">Radius: <span x-text="options.sharpen_radius"></span></label>
+                                                <input type="range" id="sharpen_radius" x-model="options.sharpen_radius" min="0.5" max="2" step="0.1">
+                                            </div>
                                             <input type="range" id="temperature" x-model="options.temperature" min="-100" max="100" step="5">
                                         </div>
                                         <!-- Watermark -->
@@ -187,7 +214,7 @@
                                 <div class="bg-gray-50 p-4 rounded-lg border shadow-sm">
                                     <label class="flex items-center justify-between cursor-pointer">
                                         <span class="text-lg font-medium text-gray-700 flex items-center">
-                                            <svg class="w-5 h-5 mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"> <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v2.25A2.25 2.25 0 006 10.5zm0 9.75h2.25A2.25 2.25 0 0010.5 18v-2.25a2.25 2.25 0 00-2.25-2.25H6a2.25 2.25 0 00-2.25 2.25V18A2.25 2.25 0 006 20.25zm9.75-9.75H18a2.25 2.25 0 002.25-2.25V6A2.25 2.25 0 0018 3.75h-2.25A2.25 2.25 0 0013.5 6v2.25a2.25 2.25 0 002.25 2.25z" /> </svg>
+                                            <svg class="w-5 h-5 mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"> <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v2.25A2.25 2.25 0 006 10.5zm0 9.75h2.25A2.25 2.25 0 0010.5 18v-2.25a2.25 2.25 0 00-2.25-2.25H6a2.25 2.25 0 00-2.25 2.25V18A2.25 2.25 0 006 20.25zm9.75-9.75H18a2.25 2.25 0 002.25-2.25V6A2.25 2.25 0 0018 3.75h-2.25A2.25 2.25 0 0013.5 6v2.25a2.25 2.25 0 002.25 2.25zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /> </svg>
                                             Generate Variations?
                                         </span>
                                         <div class="relative">
@@ -442,7 +469,7 @@
                             </div>
                             <a :href="results.original.url" download class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
                                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                                 </svg>
                                 Download Original
                             </a>
@@ -457,7 +484,7 @@
                                 <h3 class="text-lg font-medium text-gray-800">Favicon (.ico)</h3>
                                 <a :href="results.favicon_ico.url" download="favicon.ico" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
                                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                                     </svg>
                                     Download favicon.ico
                                 </a>
@@ -925,6 +952,7 @@
     <div 
         x-data="{ show: false }" 
         @keydown.shift.191.window.prevent="show = true"
+        @keydown.escape.window="show = false"
         x-show="show" 
         x-cloak
         class="fixed inset-0 z-50 overflow-y-auto" 

@@ -3,3 +3,7 @@ pillow>=9.0.0
 werkzeug>=2.0.0
 zipfile36>=0.1.3
 psutil>=5.9.0  # Added for memory monitoring
+Flask-WTF>=1.1.0  # For CSRF protection
+Flask-Limiter>=3.3.0  # For rate limiting
+Flask-Caching>=2.0.2  # For caching headers
+Flask-Talisman>=1.0.0  # For security headers
