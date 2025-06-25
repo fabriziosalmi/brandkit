@@ -180,7 +180,10 @@
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-100 via-purple-400 to-pink-500 min-h-screen font-sans">
-    <div class="container mx-auto px-4 py-8" x-data="appData()" x-cloak>
+    <div class="container mx-auto px-4 py-8" x-data="appData()" x-cloak
+         @keydown.space.window.prevent="if (!isProcessing && !isComplete) $refs.fileInput.click()"
+         @keydown.ctrl.enter.window.prevent="if ((file || batchFiles.length) && !isProcessing && selected_formats.length > 0 && output_formats.length > 0) uploadImage()"
+         @keydown.escape.window.prevent="if (isProcessing) { isProcessing = false; error = 'Processing cancelled by user.'; isComplete = true; } else if (isComplete) resetForm()">
         <!-- Header -->
         <header class="mb-10 text-center">
             <h1 class="text-4xl font-bold text-gray-800 mb-2">Brand Kit Generator</h1>
@@ -196,7 +199,7 @@
                 <div class="flex flex-col items-center gap-8">
                     <!-- Centered Upload Area -->
                     <div class="w-full max-w-xl">
-                        <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">1. Upload Image</h2>
+                        <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">1. Upload Image(s)</h2>
                         <div class="flex flex-col md:flex-row items-start gap-6">
                             <!-- Drop Zone -->
                             <div
@@ -206,24 +209,55 @@
                                 @dragleave.prevent="isDragging = false"
                                 @drop.prevent="handleDrop($event)"
                                 @click="$refs.fileInput.click()">
-                                <div x-show="!preview" class="text-gray-500 space-y-2">
+                                <div x-show="!preview && !batchFiles.length" class="text-gray-500 space-y-2">
                                     <svg x-show="!isDragging" class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                     <svg x-show="isDragging" class="w-16 h-16 mx-auto text-blue-500 animate-pulse" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"> <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" /> </svg>
-                                    <p class="font-semibold" x-text="isDragging ? 'Drop image here!' : 'Drag & drop or click'"></p>
-                                    <p class="text-sm" x-text="isDragging ? ' ' : 'PNG, JPG, GIF, WEBP (Max {{ max_upload_mb }}MB)'"></p>
+                                    <p class="font-semibold" x-text="isDragging ? 'Drop images here!' : 'Drag & drop or click'"></p>
+                                    <p class="text-sm" x-text="isDragging ? ' ' : 'PNG, JPG, GIF, WEBP (Max {{ max_upload_mb }}MB each) - Multiple files supported'"></p>
                                 </div>
-                                <div x-show="preview" class="relative max-h-full">
+                                <div x-show="preview && !batchFiles.length" class="relative max-h-full">
                                     <img :src="preview" x-ref="previewImg" class="max-h-48 mx-auto rounded-md shadow" @load="getImageDimensions" />
                                     <button @click.stop="resetForm()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2" aria-label="Remove image"> <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg> </button>
                                 </div>
-                                <input type="file" x-ref="fileInput" class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp" @change="handleFileInput($event)">
+                                <!-- Batch Files Display -->
+                                <div x-show="batchFiles.length > 0" class="w-full">
+                                    <div class="text-center mb-3">
+                                        <p class="font-semibold text-gray-700" x-text="`${batchFiles.length} files selected`"></p>
+                                        <button @click="clearBatchFiles()" class="text-xs text-red-600 hover:text-red-800">Clear all</button>
+                                    </div>
+                                    <div class="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto">
+                                        <template x-for="(file, index) in batchFiles.slice(0, 9)" :key="index">
+                                            <div class="relative group">
+                                                <img :src="file.preview" class="w-full h-16 object-cover rounded border">
+                                                <button @click="removeBatchFile(index)" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                                                <p class="text-xs text-gray-600 truncate mt-1" x-text="file.name"></p>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <p x-show="batchFiles.length > 9" class="text-xs text-gray-500 mt-2" x-text="`+${batchFiles.length - 9} more files`"></p>
+                                </div>
+                                <input type="file" x-ref="fileInput" class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp" multiple @change="handleFileInput($event)">
                             </div>
                             <!-- File Info -->
-                            <div x-show="fileInfo.name" class="text-sm text-gray-600 space-y-1 pt-2 md:pt-0 md:w-48 flex-shrink-0">
-                                <p class="font-semibold text-gray-800 truncate" :title="fileInfo.name" x-text="fileInfo.name"></p>
-                                <p>Type: <span class="font-medium" x-text="fileInfo.type"></span></p>
-                                <p>Size: <span class="font-medium" x-text="fileInfo.size"></span></p>
-                                <p x-show="fileInfo.dimensions">Dimensions: <span class="font-medium" x-text="fileInfo.dimensions"></span></p>
+                            <div x-show="fileInfo.name || batchFiles.length > 0" class="text-sm text-gray-600 space-y-1 pt-2 md:pt-0 md:w-48 flex-shrink-0">
+                                <!-- Single file info -->
+                                <div x-show="fileInfo.name && !batchFiles.length">
+                                    <p class="font-semibold text-gray-800 truncate" :title="fileInfo.name" x-text="fileInfo.name"></p>
+                                    <p>Type: <span class="font-medium" x-text="fileInfo.type"></span></p>
+                                    <p>Size: <span class="font-medium" x-text="fileInfo.size"></span></p>
+                                    <p x-show="fileInfo.dimensions">Dimensions: <span class="font-medium" x-text="fileInfo.dimensions"></span></p>
+                                </div>
+                                <!-- Batch files info -->
+                                <div x-show="batchFiles.length > 0">
+                                    <p class="font-semibold text-gray-800" x-text="`${batchFiles.length} files selected`"></p>
+                                    <p class="text-xs text-gray-500">Batch processing mode</p>
+                                    <div class="mt-2 space-y-1">
+                                        <template x-for="(file, index) in batchFiles.slice(0, 3)" :key="index">
+                                            <p class="text-xs text-gray-600 truncate" x-text="file.name"></p>
+                                        </template>
+                                        <p x-show="batchFiles.length > 3" class="text-xs text-gray-500" x-text="`+${batchFiles.length - 3} more...`"></p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div x-show="error" class="mt-3 text-sm text-red-600 text-center" x-text="error"></div>
@@ -254,11 +288,63 @@
                                         Preprocessing
                                     </h3>
                                     <div class="grid grid-cols-2 gap-x-4 gap-y-4 text-sm pt-2">
-                                        <!-- Checkboxes -->
+                                        <!-- Background Removal -->
+                                        <div class="col-span-2 mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                            <label class="flex items-center space-x-2 mb-2">
+                                                <input type="checkbox" x-model="options.remove_background" class="rounded text-blue-500 focus:ring-blue-400">
+                                                <span class="font-medium text-blue-700">🎯 Remove Background</span>
+                                            </label>
+                                            <div x-show="options.remove_background" class="ml-6 space-y-2">
+                                                <div>
+                                                    <label class="block text-xs text-gray-600 mb-1">Method:</label>
+                                                    <select x-model="options.background_removal_method" class="text-xs rounded border-gray-300 focus:border-blue-400 focus:ring-blue-400">
+                                                        <option value="auto">Auto (Best Guess)</option>
+                                                        <option value="person">Person/Portrait</option>
+                                                        <option value="object">Object/Product</option>
+                                                        <option value="anime">Anime/Illustration</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label class="block text-xs text-gray-600 mb-1">Background Color:</label>
+                                                    <div class="flex items-center space-x-2">
+                                                        <input type="color" 
+                                                               x-model="options.background_color" 
+                                                               x-show="options.background_color !== 'transparent'"
+                                                               class="w-8 h-6 rounded border-gray-300">
+                                                        <select x-model="options.background_color" 
+                                                                class="text-xs rounded border-gray-300 focus:border-blue-400 focus:ring-blue-400">
+                                                            <option value="transparent">Keep Transparent</option>
+                                                            <option value="#FFFFFF">White</option>
+                                                            <option value="#000000">Black</option>
+                                                            <option value="#F3F4F6">Light Gray</option>
+                                                            <option value="#1F2937">Dark Gray</option>
+                                                            <option value="#EF4444">Red</option>
+                                                            <option value="#3B82F6">Blue</option>
+                                                            <option value="#10B981">Green</option>
+                                                        </select>
+                                                    </div>
+                                                    <p class="text-xs text-gray-500 mt-1" x-show="options.remove_background">
+                                                        Choose background color to fill transparent areas after removal
+                                                    </p>
+                                                </div>
+                                                <label class="flex items-center space-x-2">
+                                                    <input type="checkbox" x-model="options.edge_smooth" class="rounded text-blue-500 focus:ring-blue-400">
+                                                    <span class="text-xs">Smooth Edges</span>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <!-- Basic Effects -->
                                         <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.grayscale" class="rounded text-blue-500 focus:ring-blue-400"><span>Grayscale</span></label>
                                         <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.bw" class="rounded text-blue-500 focus:ring-blue-400"><span>B&W</span></label>
                                         <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.invert" class="rounded text-blue-500 focus:ring-blue-400"><span>Invert</span></label>
                                         <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.enhance_contrast" class="rounded text-blue-500 focus:ring-blue-400"><span>Contrast++</span></label>
+                                        
+                                        <!-- Advanced Processing -->
+                                        <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.auto_crop" class="rounded text-blue-500 focus:ring-blue-400"><span>Auto Crop</span></label>
+                                        <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.noise_reduction" class="rounded text-blue-500 focus:ring-blue-400"><span>Noise Reduction</span></label>
+                                        <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.shadow_effect" class="rounded text-blue-500 focus:ring-blue-400"><span>Drop Shadow</span></label>
+                                        <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.enhance_quality" class="rounded text-blue-500 focus:ring-blue-400"><span>Enhance Quality</span></label>
                                         <!-- Blur -->
                                         <div class="col-span-2 space-y-2 border-t pt-3 mt-1">
                                             <label class="flex items-center space-x-2"><input type="checkbox" x-model="options.apply_blur" class="rounded text-blue-500 focus:ring-blue-400"><span>Apply Blur</span></label>
@@ -495,14 +581,15 @@
                 <div class="mt-10 pt-6 border-t text-center">
                     <button
                         @click="uploadImage()"
-                        :disabled="!file || isProcessing || selected_formats.length === 0 || output_formats.length === 0"
+                        :disabled="(!file && !batchFiles.length) || isProcessing || selected_formats.length === 0 || output_formats.length === 0"
                         :class="{
-                            'bg-blue-600 hover:bg-blue-700': file && !isProcessing && selected_formats.length > 0 && output_formats.length > 0,
-                            'bg-gray-400 cursor-not-allowed': !file || isProcessing || selected_formats.length === 0 || output_formats.length === 0
+                            'bg-blue-600 hover:bg-blue-700': (file || batchFiles.length) && !isProcessing && selected_formats.length > 0 && output_formats.length > 0,
+                            'bg-gray-400 cursor-not-allowed': (!file && !batchFiles.length) || isProcessing || selected_formats.length === 0 || output_formats.length === 0
                         }"
                         class="px-8 py-3 rounded-lg text-white font-semibold text-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 transition duration-150 ease-in-out shadow-md">
-                        Generate Brand Kit
+                        <span x-text="batchFiles.length > 0 ? `Generate Brand Kits (${batchFiles.length} files)` : 'Generate Brand Kit'"></span>
                     </button>
+                     <p x-show="!file && !batchFiles.length" class="text-sm text-red-600 mt-2">Please upload at least one image.</p>
                      <p x-show="selected_formats.length === 0" class="text-sm text-red-600 mt-2">Please select at least one format to generate.</p>
                      <p x-show="output_formats.length === 0" class="text-sm text-red-600 mt-2">Please select at least one output file type.</p>
                 </div>
@@ -772,13 +859,19 @@
                 "Social Media Pack": ["social", "twitter", "instagram", "facebook", "social_icon_large"],
                 "Website Essentials": ["website", "favicon", "hero_desktop", "background_desktop"],
                 "Mobile App Pack": ["webapp", "mobile", "square_logo_small", "square_logo_large"],
-                "Complete Branding": ["social", "website", "favicon", "webapp", "background_desktop"]
+                "Complete Branding": ["social", "website", "favicon", "webapp", "background_desktop"],
+                "E-commerce": ["website", "social", "mobile", "square_1024"],
+                "Print Ready": ["square_1024", "hero_desktop", "background_desktop"],
+                "Quick Start": ["webapp", "social", "favicon"],
+                "High Resolution": ["background_desktop", "hero_desktop", "square_1024"]
             };
             
             return {
                 config: initialConfig,
                 file: null,
                 preview: null,
+                batchFiles: [], // For multiple file upload
+                batchMode: false,
                 isDragging: false,
                 isProcessing: false,
                 isComplete: false,
@@ -799,6 +892,28 @@
                 // --- End Intelligence ---
                 // --- Options ---
                 options: {
+                    // Background removal
+                    remove_background: false,
+                    background_removal_method: 'auto',
+                    background_color: 'transparent',
+                    edge_smooth: false,
+                    smooth_radius: 2.0,
+                    
+                    // Auto cropping and cleanup
+                    auto_crop: false,
+                    crop_padding: 10,
+                    noise_reduction: false,
+                    noise_strength: 1,
+                    
+                    // Effects and enhancements
+                    shadow_effect: false,
+                    shadow_opacity: 0.3,
+                    shadow_blur: 4,
+                    shadow_offset_x: 5,
+                    shadow_offset_y: 5,
+                    enhance_quality: false,
+                    
+                    // Basic processing
                     grayscale: false,
                     bw: false,
                     invert: false,
@@ -810,6 +925,12 @@
                     add_watermark: false,
                     watermark_text: '© BrandKit',
                     watermark_opacity: 0.3,
+                    vignette: false,
+                    vignette_strength: 0.5,
+                    saturation: 1.0,
+                    brightness: 1.0,
+                    sharpen: false,
+                    sharpen_radius: 1.0,
                 },
                 selected_formats: [...defaultFormats], // Default select all formats
                 output_formats: [...defaultOutputFormats], // Default select common formats
@@ -900,7 +1021,9 @@
                     this.isDragging = false;
                     this.error = null; // Clear previous error
                     const droppedFiles = e.dataTransfer.files;
-                    if (droppedFiles.length > 0) {
+                    if (droppedFiles.length > 1) {
+                        this.handleBatchFiles(Array.from(droppedFiles));
+                    } else if (droppedFiles.length === 1) {
                         this.handleFile(droppedFiles[0]);
                     }
                 },
@@ -908,8 +1031,60 @@
                 handleFileInput(e) {
                      this.error = null; // Clear previous error
                     const files = e.target.files;
-                    if (files.length > 0) {
+                    if (files.length > 1) {
+                        // Batch mode
+                        this.handleBatchFiles(Array.from(files));
+                    } else if (files.length === 1) {
+                        // Single file mode
                         this.handleFile(files[0]);
+                    }
+                },
+
+                handleBatchFiles(files) {
+                    this.batchFiles = [];
+                    this.file = null;
+                    this.preview = null;
+                    this.batchMode = true;
+                    
+                    files.forEach(file => {
+                        if (this.isValidFile(file)) {
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                                this.batchFiles.push({
+                                    file: file,
+                                    name: file.name,
+                                    preview: e.target.result,
+                                    size: this.formatFileSize(file.size)
+                                });
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    });
+                },
+
+                isValidFile(file) {
+                    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                    if (!validTypes.includes(file.type)) {
+                        this.error = `Invalid file type: ${file.name}. Please use JPG, PNG, GIF, or WEBP.`;
+                        return false;
+                    }
+                    if (file.size > this.max_upload_mb * 1024 * 1024) {
+                        this.error = `File too large: ${file.name} (Max ${this.max_upload_mb}MB).`;
+                        return false;
+                    }
+                    return true;
+                },
+
+                clearBatchFiles() {
+                    this.batchFiles = [];
+                    this.batchMode = false;
+                    this.error = null;
+                },
+
+                removeBatchFile(index) {
+                    this.batchFiles.splice(index, 1);
+                    if (this.batchFiles.length === 0) {
+                        this.batchMode = false;
                     }
                 },
 
@@ -953,6 +1128,8 @@
                 resetFileInput() {
                     this.file = null;
                     this.preview = null;
+                    this.batchFiles = [];
+                    this.batchMode = false;
                     this.fileInfo = {name: '', type: '', size: '', dimensions: ''};
                     if (this.$refs.fileInput) {
                         this.$refs.fileInput.value = '';
@@ -968,6 +1145,28 @@
                     this.analysis = null;
                     // Reset options to defaults
                     this.options = { 
+                        // Background removal
+                        remove_background: false,
+                        background_removal_method: 'auto',
+                        background_color: 'transparent',
+                        edge_smooth: false,
+                        smooth_radius: 2.0,
+                        
+                        // Auto cropping and cleanup
+                        auto_crop: false,
+                        crop_padding: 10,
+                        noise_reduction: false,
+                        noise_strength: 1,
+                        
+                        // Effects and enhancements
+                        shadow_effect: false,
+                        shadow_opacity: 0.3,
+                        shadow_blur: 4,
+                        shadow_offset_x: 5,
+                        shadow_offset_y: 5,
+                        enhance_quality: false,
+                        
+                        // Basic processing
                         grayscale: false, 
                         bw: false, 
                         invert: false, 
@@ -978,7 +1177,13 @@
                         blur_radius: 2.0, 
                         add_watermark: false, 
                         watermark_text: '© BrandKit', 
-                        watermark_opacity: 0.3 
+                        watermark_opacity: 0.3,
+                        vignette: false,
+                        vignette_strength: 0.5,
+                        saturation: 1.0,
+                        brightness: 1.0,
+                        sharpen: false,
+                        sharpen_radius: 1.0,
                     };
                     this.selected_formats = [...defaultFormats];
                     this.output_formats = [...defaultOutputFormats];
@@ -1098,7 +1303,7 @@
                 },
 
                 uploadImage() {
-                    if (!this.file || this.selected_formats.length === 0 || this.output_formats.length === 0) return;
+                    if ((!this.file && !this.batchFiles.length) || this.selected_formats.length === 0 || this.output_formats.length === 0) return;
 
                     this.isProcessing = true;
                     this.isComplete = false; // Ensure results aren't shown during processing

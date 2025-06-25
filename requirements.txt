@@ -7,3 +7,6 @@ Flask-WTF>=1.1.0  # For CSRF protection
 Flask-Limiter>=3.3.0  # For rate limiting
 Flask-Caching>=2.0.2  # For caching headers
 Flask-Talisman>=1.0.0  # For security headers
+rembg>=2.0.0  # For AI-powered background removal
+opencv-python>=4.7.0  # For advanced image processing
+numpy>=1.24.0  # Required for image processing operations

@@ -7,6 +7,9 @@ import uuid
 import tempfile
 import hashlib
 import logging
+import gc
+import threading
+import traceback
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
 from werkzeug.utils import secure_filename
@@ -17,6 +20,32 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 from flask_talisman import Talisman
+
+# Import psutil if available for memory monitoring
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+    print("Warning: psutil not available. Memory monitoring disabled.")
+
+# Import additional libraries for background removal
+try:
+    from rembg import remove, new_session
+    REMBG_AVAILABLE = True
+    print("Background removal (rembg) is available")
+except ImportError:
+    REMBG_AVAILABLE = False
+    print("Background removal (rembg) not available. Install with: pip install rembg")
+
+# Import cv2 for advanced image processing if available
+try:
+    import cv2
+    CV2_AVAILABLE = True
+    print("OpenCV (cv2) is available for advanced processing")
+except ImportError:
+    CV2_AVAILABLE = False
+    print("OpenCV not available. Some advanced features may be limited.")
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
@@ -59,9 +88,46 @@ DEFAULT_CONFIG = {
         "webapp": {"width": 512, "height": 512, "description": "Web App Manifest Icon"},
         "mobile": {"width": 1080, "height": 1920, "description": "Mobile Screens"},
         "social": {"width": 1080, "height": 1080, "description": "Social Media Posts"},
-        "favicon": {"width": 48, "height": 48, "description": "Browser Favicon (generates .ico)"}
+        "favicon": {"width": 48, "height": 48, "description": "Browser Favicon (generates .ico)"},
+        "logo_transparent": {"width": 512, "height": 512, "description": "Transparent Logo (PNG only)"},
+        "background_desktop": {"width": 1920, "height": 1080, "description": "Desktop Background"},
+        "background_mobile": {"width": 1080, "height": 1920, "description": "Mobile Background"},
+        "square_1024": {"width": 1024, "height": 1024, "description": "Square Format 1024x1024"},
+        "hero_desktop": {"width": 1200, "height": 400, "description": "Website Hero Banner"},
+        "hero_mobile": {"width": 800, "height": 600, "description": "Mobile Hero Banner"},
+        
+        # Social Media Specific
+        "instagram": {"width": 1080, "height": 1080, "description": "Instagram Post"},
+        "instagram_story": {"width": 1080, "height": 1920, "description": "Instagram Story"},
+        "facebook": {"width": 1200, "height": 630, "description": "Facebook Post"},
+        "twitter": {"width": 1200, "height": 675, "description": "Twitter Card"},
+        "linkedin": {"width": 1200, "height": 627, "description": "LinkedIn Post"},
+        "youtube_thumbnail": {"width": 1280, "height": 720, "description": "YouTube Thumbnail"},
+        
+        # Additional Useful Formats
+        "profile_picture": {"width": 400, "height": 400, "description": "Profile Picture"},
+        "cover_photo": {"width": 1920, "height": 1080, "description": "Cover Photo"},
+        "square_small": {"width": 256, "height": 256, "description": "Small Square Icon"},
+        "square_large": {"width": 2048, "height": 2048, "description": "Large Square Format"},
+        "business_card": {"width": 1050, "height": 600, "description": "Business Card"},
+        "poster": {"width": 1080, "height": 1350, "description": "Poster Format"},
+        
+        # E-commerce
+        "product_square": {"width": 800, "height": 800, "description": "Product Image Square"},
+        "product_wide": {"width": 1200, "height": 800, "description": "Product Image Wide"},
+        
+        # Print-ready
+        "print_a4": {"width": 2480, "height": 3508, "description": "A4 Print Ready (300 DPI)"},
+        "print_letter": {"width": 2550, "height": 3300, "description": "Letter Print Ready (300 DPI)"}
     },
-    "format_categories": {},
+    "format_categories": {
+        "Social Media": ["social", "instagram", "instagram_story", "facebook", "twitter", "linkedin", "youtube_thumbnail"],
+        "Website": ["website", "hero_desktop", "hero_mobile", "background_desktop", "cover_photo"],
+        "Mobile": ["mobile", "webapp", "background_mobile", "profile_picture"],
+        "Branding": ["logo_transparent", "square_1024", "favicon", "square_small", "square_large"],
+        "E-commerce": ["product_square", "product_wide", "square_1024"],
+        "Print": ["print_a4", "print_letter", "poster", "business_card"]
+    },
     "output_formats": ["png", "jpg", "webp", "ico"],
     "preprocessing_options": {
         "grayscale": False,
@@ -80,7 +146,15 @@ DEFAULT_CONFIG = {
         "saturation": 1.0,
         "brightness": 1.0,
         "sharpen": False,
-        "sharpen_radius": 1.0
+        "sharpen_radius": 1.0,
+        "remove_background": False,
+        "background_color": "#FFFFFF",
+        "edge_smooth": False,
+        "noise_reduction": False,
+        "auto_crop": False,
+        "shadow_effect": False,
+        "shadow_opacity": 0.3,
+        "shadow_blur": 4
     }
 }
 
@@ -113,6 +187,53 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 def preprocess_image(image, options):
+    """Enhanced preprocessing with background removal and advanced features"""
+    
+    # Debug logging
+    print(f"Preprocessing options: remove_background={options.get('remove_background')}, background_color={options.get('background_color')}")
+    
+    # First, handle background removal if requested
+    if options.get('remove_background') and REMBG_AVAILABLE:
+        bg_method = options.get('background_removal_method', 'auto')
+        print(f"Removing background using method: {bg_method}")
+        image = remove_background(image, method=bg_method)
+        print("Background removal completed")
+    
+    # Apply background color if specified and image has transparency
+    if image.mode == 'RGBA':
+        # Check if image has transparency
+        alpha_range = image.getchannel('A').getextrema()
+        has_transparency = alpha_range[0] < 255  # Has some transparency
+        
+        bg_color = options.get('background_color', 'transparent')
+        print(f"Background color setting: {bg_color}, has_transparency: {has_transparency}")
+        
+        if bg_color and bg_color.lower() != 'transparent' and has_transparency:
+            print(f"Applying background color: {bg_color}")
+            image = apply_background_color(image, bg_color)
+            # Verify background color was applied
+            new_alpha_range = image.getchannel('A').getextrema()
+            print(f"After background color application - alpha range: {new_alpha_range}")
+        else:
+            print("Skipping background color application")
+    else:
+        print(f"Image mode is {image.mode}, not RGBA - skipping transparency checks")
+    
+    # Auto crop if requested
+    if options.get('auto_crop'):
+        image = auto_crop_image(image, padding=options.get('crop_padding', 10))
+    
+    # Noise reduction
+    if options.get('noise_reduction'):
+        noise_strength = options.get('noise_strength', 1)
+        image = reduce_noise(image, strength=noise_strength)
+    
+    # Edge smoothing for transparent images
+    if options.get('edge_smooth') and image.mode == 'RGBA':
+        smooth_radius = options.get('smooth_radius', 2)
+        image = smooth_edges(image, radius=smooth_radius)
+    
+    # Existing preprocessing options
     if options.get('grayscale'):
         image = image.convert('L').convert('RGBA')
     if options.get('bw'):
@@ -161,6 +282,17 @@ def preprocess_image(image, options):
     if options.get('sharpen'):
         radius = options.get('sharpen_radius', 1.0)
         image = image.filter(ImageFilter.UnsharpMask(radius=radius))
+    
+    # Apply shadow effect if requested
+    if options.get('shadow_effect'):
+        shadow_opacity = options.get('shadow_opacity', 0.3)
+        shadow_blur = options.get('shadow_blur', 4)
+        shadow_offset = options.get('shadow_offset', (5, 5))
+        image = add_drop_shadow(image, offset=shadow_offset, blur_radius=shadow_blur, opacity=shadow_opacity)
+    
+    # General quality enhancement
+    if options.get('enhance_quality', False):
+        image = enhance_image_quality(image)
     
     return image
 
@@ -348,6 +480,21 @@ def upload_file():
                 'brightness': float(request.form.get('brightness', config.get('preprocessing_options', {}).get('brightness', 1.0))),
                 'sharpen': request.form.get('sharpen') == 'true',
                 'sharpen_radius': float(request.form.get('sharpen_radius', config.get('preprocessing_options', {}).get('sharpen_radius', 1.0))),
+                # New advanced options
+                'remove_background': request.form.get('remove_background') == 'true',
+                'background_removal_method': request.form.get('background_removal_method', 'auto'),
+                'background_color': request.form.get('background_color', 'transparent'),
+                'edge_smooth': request.form.get('edge_smooth') == 'true',
+                'smooth_radius': float(request.form.get('smooth_radius', 2.0)),
+                'noise_reduction': request.form.get('noise_reduction') == 'true',
+                'noise_strength': int(request.form.get('noise_strength', 1)),
+                'auto_crop': request.form.get('auto_crop') == 'true',
+                'crop_padding': int(request.form.get('crop_padding', 10)),
+                'shadow_effect': request.form.get('shadow_effect') == 'true',
+                'shadow_opacity': float(request.form.get('shadow_opacity', 0.3)),
+                'shadow_blur': int(request.form.get('shadow_blur', 4)),
+                'shadow_offset': (int(request.form.get('shadow_offset_x', 5)), int(request.form.get('shadow_offset_y', 5))),
+                'enhance_quality': request.form.get('enhance_quality') == 'true',
             }
             
             # Get additional options
@@ -369,6 +516,7 @@ def upload_file():
                 }
             except Exception as e:
                 print(f"Image analysis failed: {e}")
+                traceback.print_exc()
                 analysis_results = {
                     'prominent_color': [200, 200, 200],
                     'has_white_area': False,
@@ -542,13 +690,30 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
                                     bg.paste(img_copy, paste_pos, img_copy)
                                     new_img = bg
                                 else:
-                                    # Center the image on a transparent background
-                                    new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
-                                    paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
-                                    
+                                    # Check if the preprocessed image has a background color applied
+                                    # If it does, preserve it; otherwise use transparent background
                                     if img_copy.mode == 'RGBA':
-                                        new_img.paste(img_copy, paste_pos, img_copy)
+                                        # Check if image has transparency after preprocessing
+                                        alpha_range = img_copy.getchannel('A').getextrema()
+                                        has_transparency = alpha_range[0] < 255
+                                        
+                                        if has_transparency:
+                                            # Image still has transparency, use transparent background
+                                            new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
+                                            paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                                            new_img.paste(img_copy, paste_pos, img_copy)
+                                        else:
+                                            # Image has no transparency (background color was applied), preserve it
+                                            # Create background with the same color as the processed image
+                                            # Sample the background color from a corner pixel
+                                            bg_color = img_copy.getpixel((0, 0))[:3]  # Get RGB, ignore alpha
+                                            new_img = Image.new("RGBA", dimensions, bg_color + (255,))
+                                            paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                                            new_img.paste(img_copy, paste_pos)
                                     else:
+                                        # Not RGBA, paste normally
+                                        new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
+                                        paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
                                         new_img.paste(img_copy, paste_pos)
                                         
                                 # Save to cache for future use
@@ -666,13 +831,30 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
                             bg.paste(img_copy, paste_pos, img_copy)
                             new_img = bg
                         else:
-                            # Center the image on a transparent background
-                            new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
-                            paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
-                            
+                            # Check if the preprocessed image has a background color applied
+                            # If it does, preserve it; otherwise use transparent background
                             if img_copy.mode == 'RGBA':
-                                new_img.paste(img_copy, paste_pos, img_copy)
+                                # Check if image has transparency after preprocessing
+                                alpha_range = img_copy.getchannel('A').getextrema()
+                                has_transparency = alpha_range[0] < 255
+                                
+                                if has_transparency:
+                                    # Image still has transparency, use transparent background
+                                    new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
+                                    paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                                    new_img.paste(img_copy, paste_pos, img_copy)
+                                else:
+                                    # Image has no transparency (background color was applied), preserve it
+                                    # Create background with the same color as the processed image
+                                    # Sample the background color from a corner pixel
+                                    bg_color = img_copy.getpixel((0, 0))[:3]  # Get RGB, ignore alpha
+                                    new_img = Image.new("RGBA", dimensions, bg_color + (255,))
+                                    paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
+                                    new_img.paste(img_copy, paste_pos)
                             else:
+                                # Not RGBA, paste normally
+                                new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
+                                paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
                                 new_img.paste(img_copy, paste_pos)
                                 
                         # Save to cache for future use
@@ -725,6 +907,228 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
         import traceback
         traceback.print_exc()
         raise
+
+# --- Helper Functions for Advanced Image Processing ---
+
+def remove_background(image, method='auto'):
+    """Remove background from image using various methods"""
+    if not REMBG_AVAILABLE:
+        print("Background removal not available - rembg not installed")
+        return image
+    
+    try:
+        # Convert PIL image to bytes
+        img_bytes = io.BytesIO()
+        image.save(img_bytes, format='PNG')
+        img_bytes.seek(0)
+        
+        # Use different models based on method
+        if method == 'person':
+            session = new_session('u2net_human_seg')
+        elif method == 'object':
+            session = new_session('u2net')
+        elif method == 'anime':
+            session = new_session('u2net_anime')
+        else:  # auto
+            session = new_session('u2net')
+        
+        # Remove background
+        output = remove(img_bytes.getvalue(), session=session)
+        
+        # Convert back to PIL Image
+        result = Image.open(io.BytesIO(output)).convert('RGBA')
+        
+        print(f"Background removed successfully using method: {method}")
+        return result
+        
+    except Exception as e:
+        print(f"Error removing background: {e}")
+        traceback.print_exc()
+        return image
+
+def apply_background_color(image, bg_color="#FFFFFF"):
+    """Apply a solid background color to a transparent image"""
+    try:
+        if image.mode != 'RGBA':
+            image = image.convert('RGBA')
+        
+        # Parse background color - handle various formats
+        if isinstance(bg_color, str):
+            bg_color = bg_color.strip()
+            
+            # Handle hex colors
+            if bg_color.startswith('#'):
+                hex_color = bg_color[1:]
+            else:
+                hex_color = bg_color
+            
+            # Validate hex color length
+            if len(hex_color) == 3:
+                # Short hex format (e.g., #000 -> #000000)
+                hex_color = ''.join([c*2 for c in hex_color])
+            elif len(hex_color) != 6:
+                print(f"Invalid hex color format: {bg_color}, using white")
+                hex_color = "FFFFFF"
+            
+            # Convert hex to RGB
+            try:
+                r = int(hex_color[0:2], 16)
+                g = int(hex_color[2:4], 16)
+                b = int(hex_color[4:6], 16)
+            except ValueError:
+                print(f"Invalid hex color: {bg_color}, using white")
+                r, g, b = 255, 255, 255
+        else:
+            # Handle RGB tuple
+            r, g, b = bg_color[:3] if len(bg_color) >= 3 else (255, 255, 255)
+        
+        # Create background with the specified color
+        background = Image.new('RGBA', image.size, (r, g, b, 255))
+        
+        # Composite the image on the background
+        result = Image.alpha_composite(background, image)
+        
+        print(f"Applied background color: RGB({r}, {g}, {b})")
+        return result
+        
+    except Exception as e:
+        print(f"Error applying background color: {e}")
+        import traceback
+        traceback.print_exc()
+        return image
+
+def smooth_edges(image, radius=2):
+    """Smooth the edges of a transparent image"""
+    try:
+        if image.mode != 'RGBA':
+            image = image.convert('RGBA')
+        
+        # Get alpha channel
+        r, g, b, a = image.split()
+        
+        # Apply slight blur to alpha channel to smooth edges
+        smoothed_alpha = a.filter(ImageFilter.GaussianBlur(radius=radius))
+        
+        # Recombine channels
+        result = Image.merge('RGBA', (r, g, b, smoothed_alpha))
+        
+        return result
+        
+    except Exception as e:
+        print(f"Error smoothing edges: {e}")
+        return image
+
+def reduce_noise(image, strength=1):
+    """Reduce noise in the image using PIL filters"""
+    try:
+        # Apply median filter to reduce noise
+        if strength == 1:
+            result = image.filter(ImageFilter.MedianFilter(size=3))
+        elif strength == 2:
+            result = image.filter(ImageFilter.MedianFilter(size=5))
+        else:
+            result = image.filter(ImageFilter.SMOOTH_MORE)
+        
+        return result
+        
+    except Exception as e:
+        print(f"Error reducing noise: {e}")
+        return image
+
+def auto_crop_image(image, padding=10):
+    """Auto crop image to remove transparent/white areas"""
+    try:
+        if image.mode != 'RGBA':
+            # For non-transparent images, convert to RGBA
+            image = image.convert('RGBA')
+        
+        # Get the bounding box of the non-transparent area
+        bbox = image.getbbox()
+        
+        if bbox:
+            # Add padding
+            left, top, right, bottom = bbox
+            left = max(0, left - padding)
+            top = max(0, top - padding)
+            right = min(image.width, right + padding)
+            bottom = min(image.height, bottom + padding)
+            
+            # Crop the image
+            result = image.crop((left, top, right, bottom))
+            
+            print(f"Auto-cropped image from {image.size} to {result.size}")
+            return result
+        else:
+            return image
+        
+    except Exception as e:
+        print(f"Error auto-cropping image: {e}")
+        return image
+
+def add_drop_shadow(image, offset=(5, 5), blur_radius=4, shadow_color=(0, 0, 0), opacity=0.3):
+    """Add a drop shadow effect to the image"""
+    try:
+        if image.mode != 'RGBA':
+            image = image.convert('RGBA')
+        
+        # Create shadow layer
+        shadow = Image.new('RGBA', 
+                          (image.width + abs(offset[0]) + blur_radius * 2, 
+                           image.height + abs(offset[1]) + blur_radius * 2), 
+                          (0, 0, 0, 0))
+        
+        # Create shadow shape
+        shadow_color_with_alpha = shadow_color + (int(255 * opacity),)
+        shadow_img = Image.new('RGBA', image.size, (0, 0, 0, 0))
+        
+        # Extract alpha channel and create shadow
+        _, _, _, alpha = image.split()
+        shadow_layer = Image.new('RGBA', image.size, shadow_color_with_alpha)
+        shadow_layer.putalpha(alpha)
+        
+        # Blur the shadow
+        shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+        
+        # Position shadow
+        shadow_x = blur_radius + max(0, offset[0])
+        shadow_y = blur_radius + max(0, offset[1])
+        shadow.paste(shadow_layer, (shadow_x, shadow_y), shadow_layer)
+        
+        # Position original image
+        orig_x = blur_radius + max(0, -offset[0])
+        orig_y = blur_radius + max(0, -offset[1])
+        shadow.paste(image, (orig_x, orig_y), image)
+        
+        return shadow
+        
+    except Exception as e:
+        print(f"Error adding drop shadow: {e}")
+        return image
+
+def enhance_image_quality(image):
+    """Apply various enhancements to improve image quality"""
+    try:
+        # Enhance sharpness slightly
+        enhancer = ImageEnhance.Sharpness(image)
+        image = enhancer.enhance(1.1)
+        
+        # Enhance color saturation slightly
+        enhancer = ImageEnhance.Color(image)
+        image = enhancer.enhance(1.05)
+        
+        # Enhance contrast slightly
+        enhancer = ImageEnhance.Contrast(image)
+        image = enhancer.enhance(1.05)
+        
+        return image
+        
+    except Exception as e:
+        print(f"Error enhancing image quality: {e}")
+        return image
+
+# --- End Helper Functions ---
+
+# --- Cleanup and Optimization Functions ---
 
 # Add a cleanup function to remove old files (can be called periodically)
 def cleanup_old_files(max_age_hours=24):
@@ -790,21 +1194,26 @@ def cleanup_old_files(max_age_hours=24):
 # Add a memory manager to limit RAM usage
 def cleanup_memory():
     """Force garbage collection and report memory usage"""
-    import gc
-    import psutil
-    
     # Force garbage collection
     collected = gc.collect()
     
-    # Get current process
-    process = psutil.Process(os.getpid())
+    # Get memory info if psutil is available
+    if PSUTIL_AVAILABLE:
+        try:
+            # Get current process
+            process = psutil.Process(os.getpid())
+            # Get memory info in MB
+            memory_usage = process.memory_info().rss / 1024 / 1024
+            print(f"Memory cleanup: collected {collected} objects, current usage: {memory_usage:.2f} MB")
+            return memory_usage
+        except Exception as e:
+            print(f"Error getting memory info: {e}")
+    else:
+        print(f"Memory cleanup: collected {collected} objects")
     
-    # Get memory info in MB
-    memory_usage = process.memory_info().rss / 1024 / 1024
-    
-    print(f"Memory cleanup: collected {collected} objects, current usage: {memory_usage:.2f} MB")
-    
-    return memory_usage
+    return collected
+
+# --- End Cleanup and Optimization Functions ---
 
 @app.route('/')
 def index():
@@ -984,11 +1393,25 @@ def optimize_image(img, output_format, quality=95, strip_metadata=False):
     
     # Format-specific optimizations
     if output_format.lower() in ['jpg', 'jpeg']:
-        return img.convert('RGB'), {'quality': quality}
+        # JPG doesn't support transparency, convert to RGB
+        if img.mode == 'RGBA':
+            # Create white background for transparency
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            background.paste(img, mask=img.split()[-1])  # Use alpha channel as mask
+            img = background
+        else:
+            img = img.convert('RGB')
+        return img, {'quality': quality}
     elif output_format.lower() == 'webp':
+        # WebP supports transparency, preserve RGBA if present
         return img, {'quality': quality, 'lossless': False, 'method': 6}
     elif output_format.lower() == 'png':
+        # PNG supports transparency, preserve RGBA if present
+        # No mode conversion needed - keep original mode to preserve background colors
         return img, {'optimize': True, 'compress_level': 9}
+    elif output_format.lower() == 'ico':
+        # ICO supports transparency, preserve RGBA if present
+        return img, {}
     else:
         return img, {}
 
@@ -1039,8 +1462,6 @@ def create_zip_file(results, filename_without_ext):
 if __name__ == '__main__':
     # Schedule periodic cleanup (if using a production server)
     if os.environ.get('FLASK_ENV') != 'development':
-        import threading
-        
         def scheduled_cleanup():
             while True:
                 # Sleep for 1 hour
@@ -1054,4 +1475,4 @@ if __name__ == '__main__':
         cleanup_thread.start()
     
     is_debug = os.environ.get('FLASK_ENV') == 'development'
-    app.run(port=8000)
+    app.run(port=8000, debug=is_debug)
