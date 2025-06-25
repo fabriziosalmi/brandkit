@@ -17,33 +17,53 @@ BrandKit is a web application designed to streamline the creation of brand asset
 
 ## Key Features
 
-*   **Single Image Source:** Upload one image (PNG, JPG, GIF, WEBP) and generate dozens of assets.
-*   **Wide Format Support:** Generate assets for various platforms (web, mobile, social media, favicons, etc.) based on `config.json`.
-*   **Smart Background Fill:** Automatically adds a tasteful radial gradient background (based on the image's prominent color) when resizing square images to non-square formats, preventing ugly letterboxing.
-*   **Prominent Color Extraction:** Intelligently detects the main color of your image for use in features like background fill.
-*   **Image Preprocessing:** Apply effects like grayscale, B&W, inversion, hue shifts, temperature adjustments, contrast enhancement, blur, and watermarking *before* generating assets.
-*   **Color Variations:** Optionally generate multiple thematic variations (e.g., Grayscale, Inverted, Warm, Cool) for each selected format.
-*   **Format Presets:** Quickly select common format combinations for specific use cases (Social Media Pack, Website Essentials, etc.).
-*   **Format Search:** Easily find specific formats using the search functionality.
-*   **Recent Uploads:** Quickly access your recently used images through the Recent Uploads section.
-*   **Image Optimization:** Control compression quality and strip metadata (EXIF) for privacy and reduced file sizes.
-*   **Multiple Output Types:** Export assets as PNG, JPG, WEBP, and ICO (for favicons).
-*   **Bulk Download:** Download all generated assets conveniently in a single zip file.
-*   **Keyboard Shortcuts:** Power-user features for faster workflows.
-*   **Intelligent Caching:** Improves performance for repeat operations and similar images.
-*   **Visual Processing Feedback:** Detailed progress information during asset generation.
-*   **Modern UI:** Clean and responsive interface built with Tailwind CSS and Alpine.js.
-*   **Containerized:** Easy setup and deployment using Docker and Docker Compose.
+### 🎯 AI-Powered Background Removal
+*   **Advanced Background Removal:** Powered by the `rembg` library with multiple AI models for different content types
+*   **Smart Method Selection:** Choose from Auto (best guess), Person/Portrait, Object/Product, or Anime/Illustration modes
+*   **Background Color Options:** Replace transparent areas with solid colors or keep transparency
+*   **Edge Smoothing:** Automatically smooth edges after background removal for professional results
+
+### 🎨 Enhanced Image Processing
+*   **Single Image Source:** Upload one image (PNG, JPG, GIF, WEBP) and generate dozens of assets
+*   **Advanced Preprocessing:** Apply 15+ effects including grayscale, B&W, inversion, hue shifts, temperature adjustments, contrast enhancement, blur, vignette, saturation, brightness, sharpening, and watermarking
+*   **Auto Crop:** Intelligent cropping to remove unnecessary transparent/white areas
+*   **Noise Reduction:** Clean up image artifacts for better quality
+*   **Drop Shadow Effects:** Add professional drop shadows with customizable opacity and blur
+*   **Quality Enhancement:** Automatic sharpness, color, and contrast improvements
+
+### 📐 Format & Output Management
+*   **Wide Format Support:** 25+ predefined formats for web, mobile, social media, business documents, and publishing
+*   **Smart Background Fill:** Automatically adds tasteful radial gradient backgrounds based on prominent colors
+*   **Format Presets:** Quick selection for Social Media Pack, Website Essentials, Mobile App Pack, and Complete Branding
+*   **Multiple Output Types:** Export as PNG, JPG, WEBP, and ICO (for favicons)
+*   **Bulk Download:** Download all generated assets in organized zip files
+
+### 🚀 User Experience & Performance
+*   **Format Search:** Easily find specific formats using the search functionality
+*   **Recent Uploads:** Quick access to recently used images
+*   **Color Variations:** Generate multiple thematic variations for each format
+*   **Keyboard Shortcuts:** Power-user features for faster workflows (Shift+? for help)
+*   **Intelligent Caching:** Improved performance for repeat operations
+*   **Visual Processing Feedback:** Real-time progress information
+*   **Modern UI:** Responsive interface built with Tailwind CSS and Alpine.js
+
+### 🔒 Security & Deployment
+*   **Security Hardened:** CSRF protection, rate limiting, CSP headers, and metadata stripping
+*   **Memory Management:** Automatic cleanup and optimization for stability
+*   **Containerized:** Easy deployment with Docker and Docker Compose
+*   **Production Ready:** Optimized for both development and production environments
 
 ---
 
 ## Technology Stack
 
-*   **Backend:** Flask (Python)
-*   **Image Processing:** Pillow (Python Imaging Library)
+*   **Backend:** Flask (Python 3.11+)
+*   **AI Background Removal:** rembg library with multiple neural network models
+*   **Image Processing:** Pillow (PIL), OpenCV, NumPy
 *   **Frontend:** Alpine.js, Tailwind CSS
+*   **Security:** Flask-WTF (CSRF), Flask-Limiter (rate limiting), Flask-Talisman (security headers)
+*   **Performance:** Flask-Caching, intelligent memory management, psutil monitoring
 *   **Containerization:** Docker, Docker Compose
-*   **Performance:** Intelligent caching and memory optimization
 
 ---
 
@@ -68,16 +88,50 @@ BrandKit is a web application designed to streamline the creation of brand asset
 
 ## Usage Guide
 
+### Basic Workflow
 1.  **Upload:** Drag and drop an image file (PNG, JPG, GIF, WEBP, max 16MB) onto the upload area, or click to select a file. You can also select from your recent uploads.
-2.  **Configure Preprocessing (Optional):** Use the toggles and sliders under "Preprocessing" to apply effects like grayscale, blur, or watermarking to the source image *before* resizing.
-3.  **Select Formats:** Check the boxes for the desired output dimensions or use the Format Presets buttons for quick selection of common combinations (e.g., Social Media Pack, Website Essentials). Use the format search to quickly find specific formats.
-4.  **Choose Output Types:** Select the file types you need (PNG, JPG, WEBP, ICO). Note: ICO is only generated if the `favicon` format is selected.
-5.  **Advanced Options (Optional):** Expand the Advanced Options panel to control image quality and metadata settings.
-6.  **Enable Variations (Optional):** Toggle "Generate Color Variations" to create multiple styled versions (Grayscale, Inverted, Hue Shifted, etc.) for *each* selected format.
-7.  **Generate:** Click the **Generate Brand Kit** button or use Ctrl+Enter keyboard shortcut.
+
+### Background Removal (NEW!)
+2.  **AI Background Removal:** 
+    *   Toggle "🎯 Remove Background" to enable AI-powered background removal
+    *   **Method Selection:** Choose the best AI model for your content:
+        *   **Auto:** Best general-purpose detection
+        *   **Person/Portrait:** Optimized for human subjects
+        *   **Object/Product:** Best for products and objects
+        *   **Anime/Illustration:** Specialized for anime and illustrations
+    *   **Background Color:** Choose what replaces the removed background:
+        *   Keep Transparent, White, Black, Gray variations, or custom colors
+        *   Color picker available for precise color matching
+    *   **Edge Smoothing:** Automatically smooth edges for professional results
+
+### Advanced Preprocessing
+3.  **Image Effects (Optional):** Apply 15+ preprocessing effects before generating formats:
+    *   **Basic Effects:** Grayscale, B&W, Invert, Contrast Enhancement
+    *   **Color Adjustments:** Hue Shift (-180° to +180°), Temperature, Saturation, Brightness
+    *   **Quality Enhancement:** Auto Crop, Noise Reduction, Sharpen, Quality Enhancement
+    *   **Artistic Effects:** Blur with radius control, Vignette, Drop Shadow
+    *   **Watermarking:** Add custom text watermarks with opacity control
+
+### Format Selection & Generation
+4.  **Select Formats:** 
+    *   **Individual Selection:** Check boxes for specific dimensions
+    *   **Format Presets:** Quick selection buttons:
+        *   Social Media Pack, Website Essentials, Mobile App Pack, Complete Branding
+    *   **Format Search:** Use the search bar to quickly find specific formats
+    *   **Categories:** Browse by Web Application, Website, Social Media, Mobile, Business Documents, Publishing
+
+5.  **Output Options:** Select file types (PNG, JPG, WEBP, ICO)
+
+6.  **Advanced Options (Optional):** 
+    *   Control image quality (compression)
+    *   Strip metadata for privacy
+    *   Generate Color Variations (creates themed versions of each format)
+
+7.  **Generate:** Click **Generate Brand Kit** or use Ctrl+Enter
+
 8.  **Download:**
-    *   Download individual assets using the links provided for each generated format/variation.
-    *   Download all generated assets in a structured zip file using the "Download All (.zip)" button.
+    *   Individual assets via direct links
+    *   Bulk download as organized zip file with "Download All (.zip)"
 
 ---
 
@@ -95,12 +149,15 @@ View complete shortcut documentation in [KEYBOARD_SHORTCUTS.md](KEYBOARD_SHORTCU
 
 ## Performance Features
 
-BrandKit includes several performance optimizations:
+BrandKit includes several performance and reliability optimizations:
 
-* **Image Caching:** Processed images are cached and reused when possible, reducing processing time for frequently used formats
-* **Disk Space Management:** Automatic cleanup of old files to prevent disk space issues
-* **Memory Optimization:** Intelligent garbage collection and memory management for stability
-* **Processing Progress:** Visual feedback on processing steps and progress
+* **AI Processing:** GPU-accelerated background removal with multiple specialized models
+* **Image Caching:** Processed images are cached and reused when possible, reducing processing time
+* **Memory Management:** Intelligent garbage collection, memory monitoring with psutil, automatic cleanup
+* **Disk Space Management:** Automatic cleanup of old files to prevent storage issues
+* **Processing Progress:** Real-time visual feedback on processing steps and completion status
+* **Error Handling:** Robust error handling and fallbacks for all processing steps
+* **Batch Operations:** Efficient bulk processing of multiple formats simultaneously
 
 ---
 
@@ -108,40 +165,77 @@ BrandKit includes several performance optimizations:
 
 The `config.json` file defines the available output formats, their dimensions, descriptions, and categories. You can customize this file to add, remove, or modify formats according to your needs.
 
-*   `formats`: Dictionary defining each output format key, width, height, and description.
-*   `format_categories`: Groups formats logically for the UI organization.
-*   `output_formats`: Lists the file types the application can export to.
-*   `preprocessing_options`: Defines default values for the preprocessing UI controls.
+### Configuration Structure:
+*   **`formats`:** Dictionary defining each output format with width, height, and description
+*   **`format_categories`:** Groups formats logically for UI organization (Web Application, Website, Social Media, Mobile, Business Documents, Publishing)
+*   **`output_formats`:** Lists the supported export file types (png, jpg, webp, ico)
+*   **`preprocessing_options`:** Defines default values for preprocessing controls
+
+### Available Format Categories:
+*   **Web Application:** webapp, favicon, square logos, rectangle logos
+*   **Website:** website banners, hero images, backgrounds, blog posts, lightbox images
+*   **Social Media:** social posts, Twitter, Instagram, LinkedIn, Facebook, social icons
+*   **Mobile:** mobile screens, thumbnails
+*   **Business Documents:** email headers, document headers, presentation slides
+*   **Publishing:** ebook covers
+*   **General Purpose:** square formats (1024x1024) for versatile use
 
 ---
 
 ## File Structure
 
 ```
-app.py                # Flask backend
-config.json           # Format/output config
-requirements.txt      # Python dependencies
-Dockerfile            # Docker build
-entrypoint.sh         # Entrypoint for Docker
-static/               # Static files (uploads, css, js)
-  uploads/            # Generated images
-    cache/            # Performance cache for processed images
-templates/index.html  # Main UI
-KEYBOARD_SHORTCUTS.md # Shortcut documentation
+app.py                     # Flask backend with AI processing
+config.json                # Format and output configuration
+requirements.txt           # Python dependencies (includes rembg, opencv)
+Dockerfile                 # Docker build configuration
+docker-compose.yml         # Multi-container setup
+entrypoint.sh             # Docker entrypoint script
+static/                   # Static assets
+  css/                    # Custom stylesheets
+  js/                     # JavaScript files
+  uploads/                # Generated images and user uploads
+    cache/                # Performance cache for processed images
+templates/
+  index.html              # Main UI with background removal controls
+KEYBOARD_SHORTCUTS.md      # Keyboard shortcut documentation
+SECURITY.md               # Security guidelines
+CODE_OF_CONDUCT.md        # Community guidelines
 ```
 
 ---
 
 ## Development
 
-- Run locally (requires Python 3.11+):
+### Local Development Setup
+- **Python 3.11+ Required**
+- Run locally:
   ```sh
   python3 -m venv venv
-  source venv/bin/activate
+  source venv/bin/activate  # On Windows: venv\Scripts\activate
   pip install -r requirements.txt
   python app.py
   ```
 - App runs at [http://localhost:8000](http://localhost:8000)
+
+### Key Dependencies
+```bash
+# Core dependencies
+pip install flask pillow werkzeug
+
+# Security and performance
+pip install Flask-WTF Flask-Limiter Flask-Caching Flask-Talisman psutil
+
+# AI background removal (optional but recommended)
+pip install rembg
+
+# Advanced image processing (optional)
+pip install opencv-python numpy
+```
+
+### Environment Variables
+- `FLASK_ENV=development` - Enable debug mode
+- `BRANDKIT_MAX_UPLOAD_MB=16` - Set max upload size (default: 16MB)
 
 ---
 
@@ -164,13 +258,16 @@ KEYBOARD_SHORTCUTS.md # Shortcut documentation
 
 ## Security Features
 
-BrandKit includes several security enhancements:
+BrandKit includes comprehensive security enhancements:
 
 * **Content Security Policy (CSP):** Protection against XSS and other common web vulnerabilities
-* **CSRF Protection:** Protection from cross-site request forgery attacks
-* **Rate Limiting:** Protection against abuse and DoS attacks
+* **CSRF Protection:** Cross-site request forgery protection with Flask-WTF
+* **Rate Limiting:** Protection against abuse and DoS attacks (200/day, 50/hour default)
+* **Security Headers:** Comprehensive security headers via Flask-Talisman
 * **Metadata Stripping:** Option to remove EXIF data for privacy protection
-* **Input Validation:** Thorough validation of all user inputs
+* **Input Validation:** Thorough validation of all user inputs and file uploads
+* **Memory Safety:** Protection against memory exhaustion attacks
+* **Secure File Handling:** Safe file upload and processing with extension validation
 
 ---
 
@@ -273,11 +370,43 @@ This setup ensures only authenticated users can reach your Brand Kit Generator i
 ---
 
 ## Troubleshooting
-- If you get permission errors on uploads, ensure `static/uploads` is writable.
-- If CSRF errors occur, check that the application has the proper FLASK_SECRET_KEY set.
-- For CSP issues, check browser developer console and adjust security settings.
-- For custom domains/SSL, use a reverse proxy (e.g., Nginx, Caddy).
-- For development, set `FLASK_ENV=development` in docker-compose or your shell.
+
+### Common Issues and Solutions
+
+**Background Removal Not Working:**
+- Install rembg: `pip install rembg`
+- On first use, models will download automatically (may take a few minutes)
+- Ensure sufficient disk space for AI models (~100-500MB per model)
+
+**Upload/Permission Errors:**
+- Ensure `static/uploads` directory is writable
+- Check file size limits (default 16MB, configurable via `BRANDKIT_MAX_UPLOAD_MB`)
+- Verify file format is supported (PNG, JPG, JPEG, GIF, WEBP)
+
+**Memory Issues:**
+- Monitor memory usage with built-in psutil monitoring
+- Reduce image size or number of simultaneous formats
+- Increase Docker memory limits if using containers
+
+**Performance Issues:**
+- Enable caching for better performance on repeated operations
+- Use SSD storage for faster image processing
+- Ensure adequate RAM for large images and AI processing
+
+**Security/CSRF Errors:**
+- Check that `FLASK_SECRET_KEY` is properly set
+- Verify CSRF token is included in form submissions
+- Clear browser cache and cookies
+
+**Docker/Container Issues:**
+- Ensure proper volume mounts for persistent uploads
+- Check container memory limits for AI processing
+- Verify port mappings (default 8000)
+
+**For custom domains/SSL:**
+- Use a reverse proxy (Nginx, Caddy) for production
+- Configure proper SSL termination
+- Set up security headers appropriately
 
 ---
 
