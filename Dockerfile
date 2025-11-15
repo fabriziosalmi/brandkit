@@ -26,7 +26,7 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY . .
 
 # Expose port
-EXPOSE 5000
+EXPOSE 8000
 
 # Entrypoint
 CMD ["/bin/bash", "entrypoint.sh"]

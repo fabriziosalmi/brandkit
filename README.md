@@ -4,9 +4,29 @@
 
 BrandKit is a web application designed to streamline the creation of brand assets. Upload one source image (like your logo), select desired formats, and BrandKit intelligently resizes, pads, and exports everything you need for websites, web apps, social media, and more. It uses Flask, Pillow, and Alpine.js, and is fully containerized for easy deployment.
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/your-username/brandkit/actions) <!-- Replace with your CI/CD badge -->
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Docker Hub](https://img.shields.io/badge/Docker%20Hub-ready-blue?logo=docker)](https://hub.docker.com/r/your-dockerhub-username/brandkit) <!-- Replace with your Docker Hub badge -->
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg?logo=docker)](https://www.docker.com/)
+
+## Table of Contents
+
+- [Screenshots](#screenshots)
+- [Key Features](#key-features)
+- [Technology Stack](#technology-stack)
+- [Quick Start](#quick-start-docker-compose)
+- [Usage Guide](#usage-guide)
+- [Keyboard Shortcuts](#keyboard-shortcuts)
+- [Performance Features](#performance-features)
+- [Configuration](#configuration-configjson)
+- [File Structure](#file-structure)
+- [Development](#development)
+- [Docker Details](#docker-details)
+- [Security Features](#security-features)
+- [Deployment & Security](#deployment--security)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#feedback--contributions)
+- [Changelog](#changelog)
+- [License](#license)
 
 ## Screenshots
 
@@ -69,20 +89,34 @@ BrandKit is a web application designed to streamline the creation of brand asset
 
 ## Quick Start (Docker Compose)
 
+The fastest way to get BrandKit running is with Docker Compose:
+
 1.  **Clone the repository:**
-    ```sh
+    ```bash
     git clone https://github.com/fabriziosalmi/brandkit.git
     cd brandkit
     ```
-2.  **Build and run with Docker Compose:**
-    ```sh
-    docker-compose up --build -d # Use -d to run in detached mode
-    ```
-3.  **Open in your browser:**
 
+2.  **Build and run with Docker Compose:**
+    ```bash
+    docker-compose up --build -d
+    ```
+    The `-d` flag runs containers in detached mode (background).
+
+3.  **Open in your browser:**
     Visit [http://localhost:8000](http://localhost:8000)
 
 4.  **Upload an image, select formats/options, and generate your brand kit!**
+
+5.  **Stop the application:**
+    ```bash
+    docker-compose down
+    ```
+
+**Troubleshooting Docker:**
+- Ensure Docker daemon is running
+- Check port 8000 is not already in use: `lsof -i :8000` (macOS/Linux) or `netstat -ano | findstr :8000` (Windows)
+- View logs: `docker-compose logs -f brandkit`
 
 ---
 
@@ -207,6 +241,51 @@ CODE_OF_CONDUCT.md        # Community guidelines
 
 ## Development
 
+### Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Python 3.11 or higher** - [Download Python](https://www.python.org/downloads/)
+- **pip** - Python package installer (included with Python 3.11+)
+- **Git** - For version control
+- **Docker & Docker Compose** (optional) - For containerized deployment
+  - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (macOS, Windows)
+  - Docker Engine (Linux)
+
+**System Requirements:**
+- Minimum 2GB RAM (4GB+ recommended for large images)
+- 1GB free disk space (more for AI models and cached images)
+- Modern web browser (Chrome, Firefox, Safari, Edge)
+
+### Local Development Setup
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/fabriziosalmi/brandkit.git
+   cd brandkit
+   ```
+
+2. **Create and activate a virtual environment:**
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+   
+   **Note:** On first run, the `rembg` library will download AI models (~100-500MB). This is a one-time download.
+
+4. **Run the application:**
+   ```bash
+   python app.py
+   ```
+
+5. **Access the application:**
+   Open your browser and navigate to [http://localhost:8000](http://localhost:8000)
+
 ### Local Development Setup
 - **Python 3.11+ Required**
 - Run locally:
@@ -234,8 +313,20 @@ pip install opencv-python numpy
 ```
 
 ### Environment Variables
-- `FLASK_ENV=development` - Enable debug mode
-- `BRANDKIT_MAX_UPLOAD_MB=16` - Set max upload size (default: 16MB)
+
+Configure BrandKit behavior using environment variables:
+
+- `FLASK_ENV=development` - Enable debug mode with auto-reload and detailed error pages
+- `FLASK_ENV=production` - Run in production mode with optimizations and scheduled cleanup
+- `BRANDKIT_MAX_UPLOAD_MB=16` - Set maximum upload file size in megabytes (default: 16MB)
+- `FLASK_SECRET_KEY` - Custom secret key for session management (auto-generated if not set)
+
+**Example:**
+```bash
+export FLASK_ENV=development
+export BRANDKIT_MAX_UPLOAD_MB=32
+python app.py
+```
 
 ---
 
@@ -373,35 +464,225 @@ This setup ensures only authenticated users can reach your Brand Kit Generator i
 
 ### Common Issues and Solutions
 
-**Background Removal Not Working:**
-- Install rembg: `pip install rembg`
-- On first use, models will download automatically (may take a few minutes)
-- Ensure sufficient disk space for AI models (~100-500MB per model)
+#### Background Removal Not Working
 
-**Upload/Permission Errors:**
-- Ensure `static/uploads` directory is writable
-- Check file size limits (default 16MB, configurable via `BRANDKIT_MAX_UPLOAD_MB`)
-- Verify file format is supported (PNG, JPG, JPEG, GIF, WEBP)
+**Problem:** Background removal feature doesn't process images or shows errors.
 
-**Memory Issues:**
-- Monitor memory usage with built-in psutil monitoring
-- Reduce image size or number of simultaneous formats
-- Increase Docker memory limits if using containers
+**Solutions:**
+- **Check Installation:** Ensure `rembg` is installed: `pip install rembg`
+- **First Run:** On first use, AI models download automatically (100-500MB per model). This may take several minutes depending on your internet connection. Check console output for download progress.
+- **Disk Space:** Verify sufficient disk space for AI models (at least 1GB free)
+- **Memory:** Background removal requires adequate RAM. For large images, ensure at least 4GB available memory.
+- **Permissions:** Ensure the application has write access to the cache directory
 
-**Performance Issues:**
-- Enable caching for better performance on repeated operations
-- Use SSD storage for faster image processing
-- Ensure adequate RAM for large images and AI processing
+**Check Model Installation:**
+```bash
+python3 -c "from rembg import remove; print('rembg is working')"
+```
 
-**Security/CSRF Errors:**
-- Check that `FLASK_SECRET_KEY` is properly set
-- Verify CSRF token is included in form submissions
-- Clear browser cache and cookies
+#### Upload/Permission Errors
 
-**Docker/Container Issues:**
-- Ensure proper volume mounts for persistent uploads
-- Check container memory limits for AI processing
-- Verify port mappings (default 8000)
+**Problem:** "Permission denied" or upload failures.
+
+**Solutions:**
+- **Directory Permissions:** Ensure `static/uploads` directory exists and is writable:
+  ```bash
+  mkdir -p static/uploads
+  chmod 755 static/uploads
+  ```
+- **File Size:** Check if file exceeds the limit (default 16MB). Increase with:
+  ```bash
+  export BRANDKIT_MAX_UPLOAD_MB=32
+  ```
+- **File Format:** Verify file is a supported format (PNG, JPG, JPEG, GIF, WEBP)
+- **Disk Space:** Ensure sufficient disk space for uploads and processing
+- **Docker Volumes:** For Docker, verify volume mounts are correct in `docker-compose.yml`
+
+**Check Permissions:**
+```bash
+ls -la static/uploads
+# Should show rwxr-xr-x or similar
+```
+
+#### Memory Issues
+
+**Problem:** Application crashes or becomes unresponsive during processing.
+
+**Solutions:**
+- **Monitor Memory:** Check memory usage with built-in psutil monitoring (visible in console logs)
+- **Reduce Image Size:** Process smaller images or reduce the number of simultaneous formats
+- **Increase Docker Memory:** For Docker deployments, increase container memory limits:
+  ```yaml
+  # In docker-compose.yml
+  services:
+    brandkit:
+      deploy:
+        resources:
+          limits:
+            memory: 4G
+  ```
+- **Disable AI Features:** If memory is very limited, process images without background removal
+- **Clear Cache:** Remove cached files from `static/uploads/cache/`
+
+**Monitor Memory:**
+```bash
+# Linux/macOS
+top -p $(pgrep -f "python app.py")
+
+# Docker
+docker stats brandkit
+```
+
+#### Performance Issues
+
+**Problem:** Slow image processing or generation.
+
+**Solutions:**
+- **Enable Caching:** Caching is enabled by default. Verify processed images are being cached
+- **Use SSD Storage:** Store the application on SSD for faster I/O operations
+- **Optimize Images:** Reduce source image size before uploading
+- **Adequate RAM:** Ensure at least 2GB RAM available (4GB+ recommended)
+- **Reduce Formats:** Generate fewer formats at once to improve speed
+- **Background Removal:** AI processing is CPU/memory intensive. Use sparingly for better performance
+- **Clean Up:** Regularly clear old files: `rm -rf static/uploads/*` (except README.md)
+
+**Check Cache:**
+```bash
+ls -lh static/uploads/cache/
+# Should show cached processed images
+```
+
+#### Security/CSRF Errors
+
+**Problem:** "CSRF token missing" or "CSRF validation failed" errors.
+
+**Solutions:**
+- **Secret Key:** Ensure `FLASK_SECRET_KEY` is set (auto-generated if not specified)
+- **Cookies:** Enable cookies in your browser
+- **Clear Cache:** Clear browser cache and cookies, then reload
+- **HTTPS/HTTP Mismatch:** Ensure consistent protocol (both HTTP or both HTTPS)
+- **Reload Page:** Refresh the page to get a new CSRF token
+
+**Check CSRF:**
+```bash
+# Verify CSRF protection is active
+curl -X POST http://localhost:8000/upload
+# Should return 400 with CSRF error
+```
+
+#### Docker/Container Issues
+
+**Problem:** Container fails to start or can't connect.
+
+**Solutions:**
+- **Port Conflicts:** Ensure port 8000 is not in use:
+  ```bash
+  # macOS/Linux
+  lsof -i :8000
+  
+  # Windows
+  netstat -ano | findstr :8000
+  ```
+- **Volume Mounts:** Verify upload directory mounts correctly:
+  ```bash
+  docker-compose exec brandkit ls -la /app/static/uploads
+  ```
+- **Container Logs:** Check logs for errors:
+  ```bash
+  docker-compose logs -f brandkit
+  ```
+- **Memory Limits:** AI processing requires adequate memory. Increase Docker memory allocation in Docker Desktop settings (recommended: 4GB+)
+- **Rebuild Container:** Force rebuild if issues persist:
+  ```bash
+  docker-compose down
+  docker-compose build --no-cache
+  docker-compose up
+  ```
+
+**Verify Container Health:**
+```bash
+docker ps
+# Should show brandkit container as "Up"
+
+docker-compose exec brandkit python3 -c "print('Container is working')"
+```
+
+#### SSL/Custom Domain Issues
+
+**Problem:** SSL errors or can't access via custom domain.
+
+**Solutions:**
+- **Use Reverse Proxy:** Don't expose Flask directly. Use Nginx or Caddy for SSL termination
+- **Check Certificates:** Verify SSL certificates are valid and properly configured
+- **DNS Configuration:** Ensure DNS records point to correct IP address
+- **Firewall:** Check firewall rules allow traffic on ports 80/443
+- **CSP Headers:** If using custom domains, may need to adjust Content Security Policy in `app.py`
+
+**Example Nginx Configuration:**
+```nginx
+server {
+    listen 443 ssl;
+    server_name brandkit.yourdomain.com;
+    
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+    
+    location / {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+### Error Messages Reference
+
+| Error Message | Likely Cause | Solution |
+|---------------|--------------|----------|
+| "File too large" | Exceeds upload limit | Increase `BRANDKIT_MAX_UPLOAD_MB` |
+| "Invalid file type" | Unsupported format | Use PNG, JPG, GIF, or WEBP |
+| "Permission denied" | Directory not writable | Fix permissions: `chmod 755 static/uploads` |
+| "Out of memory" | Insufficient RAM | Reduce image size or increase available memory |
+| "CSRF token missing" | Session/cookie issue | Clear cookies and reload page |
+| "Port already in use" | Port conflict | Change port or stop conflicting service |
+| "rembg not found" | Missing dependency | Install: `pip install rembg` |
+| "Module not found" | Missing dependencies | Run: `pip install -r requirements.txt` |
+
+### Getting Additional Help
+
+If your issue isn't listed here:
+
+1. **Check Logs:** Review application logs for detailed error messages
+   ```bash
+   # Local development
+   # Errors appear in console where you ran `python app.py`
+   
+   # Docker
+   docker-compose logs -f brandkit
+   ```
+
+2. **Search Issues:** Check [existing GitHub issues](https://github.com/fabriziosalmi/brandkit/issues)
+
+3. **Enable Debug Mode:** Run with `FLASK_ENV=development` for detailed error pages
+
+4. **Open an Issue:** If problem persists, [create a new issue](https://github.com/fabriziosalmi/brandkit/issues/new) with:
+   - Detailed description
+   - Steps to reproduce
+   - Error messages/logs
+   - Environment details (OS, Python version, Docker version)
+   - Screenshots if applicable
+
+### Performance Optimization Tips
+
+- **Batch Processing:** Generate all formats at once rather than one at a time
+- **Cache Utilization:** Reuse preprocessed images by using consistent preprocessing options
+- **Image Optimization:** Optimize source images before upload (reduce resolution if very large)
+- **Format Selection:** Only generate formats you actually need
+- **Output Quality:** Lower quality settings (70-85) reduce file size with minimal visual impact
+- **Metadata Stripping:** Enable to reduce output file sizes
+- **Regular Cleanup:** Periodically clean upload directory to free disk space
 
 **For custom domains/SSL:**
 - Use a reverse proxy (Nginx, Caddy) for production
@@ -410,9 +691,25 @@ This setup ensures only authenticated users can reach your Brand Kit Generator i
 
 ---
 
-## Feedback & Contributions
+## Contributing
 
-PRs and issues welcome! For feature requests or bug reports, please open an issue.
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting a Pull Request.
+
+For bug reports and feature requests, please use the [GitHub Issues](https://github.com/fabriziosalmi/brandkit/issues) page.
+
+For security vulnerabilities, please review our [Security Policy](SECURITY.md).
+
+---
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes to this project.
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
