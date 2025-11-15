@@ -24,7 +24,7 @@ BrandKit is a web application designed to streamline the creation of brand asset
 - [Security Features](#security-features)
 - [Deployment & Security](#deployment--security)
 - [Troubleshooting](#troubleshooting)
-- [Contributing](#feedback--contributions)
+- [Contributing](#contributing)
 - [Changelog](#changelog)
 - [License](#license)
 
