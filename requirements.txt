@@ -34,7 +34,7 @@ opencv-python==4.12.0.88
 opencv-python-headless==4.12.0.88
 ordered-set==4.1.0
 packaging==25.0
-pillow==12.0.0
+pillow==12.1.1
 platformdirs==4.5.0
 pooch==1.8.2
 protobuf==6.33.1
