@@ -43,7 +43,7 @@ Pygments==2.19.2
 PyMatting==1.1.14
 referencing==0.37.0
 rembg==2.0.68
-requests==2.32.5
+requests==2.33.0
 rich==14.2.0
 rpds-py==0.29.0
 scikit-image==0.25.2
