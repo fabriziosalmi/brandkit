@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Brand Kit Generator</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="{{ url_for('static', filename='vendor/tailwindcss/tailwind.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='vendor/alpinejs/dist/cdn.min.js') }}"></script>
     <style>
         .drop-zone { border: 2px dashed #cbd5e0; transition: all 0.3s ease; }
         .drop-zone.active { border-color: #3b82f6; background-color: #eff6ff; }
