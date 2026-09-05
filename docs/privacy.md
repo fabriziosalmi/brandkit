@@ -31,7 +31,7 @@ There is no analytics, no telemetry, no crash reporting, no update check and no 
 | Path | Contents | Written when |
 | --- | --- | --- |
 | `static/uploads/<uuid>_<name>` | your uploaded original, EXIF-stripped | on every upload |
-| `static/uploads/<name>_<format>_<w>x<h>.<ext>` | every generated asset | on every generation |
+| `static/uploads/<name>_<format>.<ext>` | every generated asset | on every generation |
 | `static/uploads/<name>_brandkit_<timestamp>.zip` | the download archive | on every generation |
 | `static/uploads/cache/` | resized intermediates, keyed by content hash | on every generation |
 | `~/.u2net/*.onnx` | rembg models | first background removal |
@@ -53,21 +53,27 @@ You should see file-system attributes and nothing else.
 
 ### Retention
 
-`cleanup_old_files()` deletes everything in `static/uploads/` and its `cache/` subdirectory older than **24 hours**.
+A background thread deletes everything in `static/uploads/` and its `cache/` subdirectory once it is past the retention window — **24 hours by default, swept hourly**. It runs under gunicorn as well as under the development server, so the standard `docker compose up` does clean up after itself.
 
-::: danger That cleanup does not run in the default Docker deployment
-The cleanup thread is started inside `if __name__ == '__main__':`, and gunicorn — which is what the container runs — never executes that block. **On a standard `docker compose up`, nothing is ever deleted.** Your uploads and every generated asset accumulate indefinitely.
-
-If you process anything sensitive, schedule cleanup yourself. Recipes are in [Performance & caching](/guide/performance#file-cleanup), and shortening retention to an hour is easy:
+::: tip 24 hours is a default, not a recommendation
+Generated assets are readable by anyone who can reach the instance. If your users download within seconds, there is no reason to keep the files for a day:
 
 ```bash
-*/15 * * * * find /srv/brandkit/static/uploads -type f -mmin +60 ! -name README.md -delete
+# .env
+BRANDKIT_RETENTION_HOURS=1
+BRANDKIT_CLEANUP_INTERVAL_HOURS=0.25
 ```
+
+Full details in [Performance & caching](/guide/performance#file-cleanup) and [Environment variables](/reference/environment#the-cleanup-variables).
+:::
+
+::: warning The sweep is per-container
+Retention is enforced by the running application. If you stop the container and leave the bind-mounted `static/uploads/` directory on the host, nothing deletes it — the files sit there until the container comes back or you remove them yourself.
 :::
 
 ### Who can read the files
 
-Everything under `static/uploads/` is served by Flask **without any authentication or authorisation check**, and filenames are predictable (`<basename>_<format>_<width>x<height>.<ext>`).
+Everything under `static/uploads/` is served by Flask **without any authentication or authorisation check**, and filenames are predictable (`<basename>_<format>.<ext>`).
 
 On a localhost instance that is irrelevant. On any instance more than one person can reach, it means **anyone who can load the page can fetch anyone else's assets** by guessing a name — and search-engine crawlers can index them if the instance is public.
 

@@ -11,6 +11,29 @@ Released versions, newest first. Source of truth is the [GitHub releases page](h
 `CHANGELOG.md` in the repository root describes a `2.0.0` release. **No `v2.0.0` tag exists** — the published tags are `v1.0.0`, `v1.1.0`, `v1.1.2` and `v1.1.3`. Its feature list is accurate; its version numbers are not. This page reflects the tags that were actually cut.
 :::
 
+## Unreleased {#unreleased}
+
+On `main`, not yet tagged.
+
+**Security**
+- `pillow` → 12.3.0 (closes 11 advisories: heap out-of-bounds writes in `ImageCmsTransform.apply()`, `Image.paste()`/`crop()` and `ImageFilter.RankFilter`; decompression-bomb bypasses via `PdfParser`, `GdImageFile`, and the BDF/PCF/`FontFile` font paths; an EPS infinite loop; a TGA heap-disclosure; and `WindowsViewer.get_command()` command injection)
+- `rembg` → 2.0.75 (SSRF and weak default CORS in the rembg server; path traversal via custom model loading — neither reachable from BrandKit's usage, which only calls `remove()`/`new_session()` with hard-coded model names, but pinned forward regardless)
+- `Flask` → 3.1.3 (missing `Vary: Cookie`)
+- `Pygments` → 2.20.0 (ReDoS in the GUID regex)
+- `numpy` → 2.3.5, `scikit-image` → 0.26.0, `opencv-python`/`opencv-python-headless` → 4.14.0.94 — required to satisfy the new `rembg` floor while staying inside `numba`'s `numpy<2.4` ceiling
+- Removed `zipfile36`, pinned but never imported and unmaintained since 2017
+- **CSP tightened**: `cdn.tailwindcss.com` and `cdn.jsdelivr.net` dropped from `script-src`. They had been left behind when the libraries were vendored in v1.1.3, so no third-party script origin is permitted any more.
+- **`/download-zip/<filename>` hardened**: the name must survive `secure_filename()` unchanged and end in `.zip`, and the resolved path is confirmed to be inside the upload folder before anything is served.
+
+**Fixed**
+- **`BRANDKIT_SECRET_KEY` is now read from the environment** (`FLASK_SECRET_KEY` accepted as an alias). The key was previously `os.urandom(24)` on every import, so sessions broke on restart and multiple gunicorn workers rejected each other's CSRF tokens. When it is unset the behaviour is unchanged but a warning is logged.
+- **The cleanup thread now runs under gunicorn.** It lived inside `if __name__ == '__main__':`, which gunicorn never executes, so the Docker deployment never deleted anything and `static/uploads/` grew without bound. It is started at import time and configurable via `BRANDKIT_CLEANUP_ENABLED`, `BRANDKIT_CLEANUP_INTERVAL_HOURS` and `BRANDKIT_RETENTION_HOURS`. A failing sweep is logged instead of killing the thread.
+- `python app.py` now honours `PORT`, which it previously ignored while `entrypoint.sh` respected it.
+- Logging is configured before the app is created, so startup warnings are formatted like every other log line.
+
+**Changed**
+- `FLASK_ENV=production` no longer gates anything and can be removed from `docker-compose.yml`.
+
 ## v1.1.3 — 8 July 2026 {#v1-1-3}
 
 Current release. A security and infrastructure pass with no user-facing feature changes.

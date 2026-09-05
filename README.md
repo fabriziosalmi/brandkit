@@ -329,16 +329,22 @@ pip install opencv-python numpy
 Configure BrandKit behavior using environment variables:
 
 - `FLASK_ENV=development` - Enable debug mode with auto-reload and detailed error pages
-- `FLASK_ENV=production` - Run in production mode with optimizations and scheduled cleanup
+- `FLASK_ENV=production` - Legacy; no longer changes behaviour (cleanup is controlled by the `BRANDKIT_CLEANUP_*` variables below)
 - `BRANDKIT_MAX_UPLOAD_MB=16` - Set maximum upload file size in megabytes (default: 16MB)
-- ~~`FLASK_SECRET_KEY`~~ - **Not implemented.** `app.py` calls `os.urandom(24)` unconditionally,
-  so the key is regenerated on every start and differs per process. Keep gunicorn at one worker.
-  See <https://fabriziosalmi.github.io/brandkit/reference/environment>
+- `BRANDKIT_SECRET_KEY` - Flask session / CSRF signing key. **Set this in any real deployment.**
+  Without it an ephemeral key is generated at startup, so sessions break on restart and multiple
+  gunicorn workers reject each other's CSRF tokens. `FLASK_SECRET_KEY` is accepted as an alias.
+- `BRANDKIT_CLEANUP_ENABLED=false` - Disable the periodic sweep of `static/uploads/` (default: enabled)
+- `BRANDKIT_CLEANUP_INTERVAL_HOURS=1` - How often the sweep runs (fractional hours allowed)
+- `BRANDKIT_RETENTION_HOURS=24` - How old a file must be before it is deleted
+
+Full reference: <https://fabriziosalmi.github.io/brandkit/reference/environment>
 
 **Example:**
 ```bash
-export FLASK_ENV=development
+export BRANDKIT_SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 export BRANDKIT_MAX_UPLOAD_MB=32
+export FLASK_ENV=development
 python app.py
 ```
 
@@ -571,7 +577,7 @@ ls -lh static/uploads/cache/
 **Problem:** "CSRF token missing" or "CSRF validation failed" errors.
 
 **Solutions:**
-- **Secret Key:** Ensure `FLASK_SECRET_KEY` is set (auto-generated if not specified)
+- **Secret Key:** Set `BRANDKIT_SECRET_KEY` to a stable value. An ephemeral key is generated when it is unset, which invalidates tokens on restart and across gunicorn workers
 - **Cookies:** Enable cookies in your browser
 - **Clear Cache:** Clear browser cache and cookies, then reload
 - **HTTPS/HTTP Mismatch:** Ensure consistent protocol (both HTTP or both HTTPS)

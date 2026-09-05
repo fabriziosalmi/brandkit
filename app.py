@@ -47,8 +47,27 @@ except ImportError:
     CV2_AVAILABLE = False
     print("OpenCV not available. Some advanced features may be limited.")
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.urandom(24)
+
+# A stable secret key is required for CSRF tokens to survive a restart and to
+# be valid across processes. Without it every gunicorn worker generates its own
+# key and tokens minted by one worker are rejected by the next.
+_secret_key = os.environ.get('BRANDKIT_SECRET_KEY') or os.environ.get('FLASK_SECRET_KEY')
+if not _secret_key:
+    _secret_key = os.urandom(24)
+    logging.warning(
+        "No BRANDKIT_SECRET_KEY set - generating an ephemeral one. Sessions and "
+        "CSRF tokens will be invalidated on restart and will not work across "
+        "multiple worker processes. Set BRANDKIT_SECRET_KEY in production."
+    )
+app.config['SECRET_KEY'] = _secret_key
+
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
@@ -64,15 +83,12 @@ cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache'})
 Talisman(app, content_security_policy={
     'default-src': "'self'",
     'img-src': "'self' data: blob:",
-    'script-src': "'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com/ https://cdn.jsdelivr.net/",
+    # Tailwind and Alpine are vendored under static/vendor/ and served
+    # same-origin, so no third-party script origin is needed. 'unsafe-inline'
+    # and 'unsafe-eval' remain because Alpine evaluates its x- attributes.
+    'script-src': "'self' 'unsafe-inline' 'unsafe-eval'",
     'style-src': "'self' 'unsafe-inline'"
 }, force_https=False)
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 
 # --- Configuration Loading with Environment Variable Overrides ---
 DEFAULT_MAX_UPLOAD_MB = 16
@@ -1324,8 +1340,19 @@ def ensure_serializable(obj):
 
 @app.route('/download-zip/<filename>')
 def download_zip(filename):
-    zip_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    if os.path.exists(zip_path):
+    # Flask's default converter already rejects a literal '/', but validate the
+    # name and confirm the resolved path stays inside the upload folder rather
+    # than relying on routing behaviour for that guarantee.
+    safe_name = secure_filename(filename)
+    if not safe_name or safe_name != filename or not safe_name.endswith('.zip'):
+        return jsonify({'error': 'File not found'}), 404
+
+    upload_root = os.path.realpath(app.config['UPLOAD_FOLDER'])
+    zip_path = os.path.realpath(os.path.join(upload_root, safe_name))
+    if os.path.commonpath([upload_root, zip_path]) != upload_root:
+        return jsonify({'error': 'File not found'}), 404
+
+    if os.path.isfile(zip_path):
         return send_file(zip_path, as_attachment=True)
     return jsonify({'error': 'File not found'}), 404
 
@@ -1459,20 +1486,68 @@ def create_zip_file(results, filename_without_ext):
         traceback.print_exc()
         return None
 
-if __name__ == '__main__':
-    # Schedule periodic cleanup (if using a production server)
-    if os.environ.get('FLASK_ENV') != 'development':
-        def scheduled_cleanup():
-            while True:
-                # Sleep for 1 hour
-                time.sleep(3600)
-                # Run cleanup
-                cleanup_old_files()
+def _cleanup_settings():
+    """Read the cleanup schedule from the environment, with safe fallbacks."""
+    def _positive_float(name, default):
+        try:
+            value = float(os.environ.get(name, default))
+        except (TypeError, ValueError):
+            logging.warning("Invalid %s - falling back to %s", name, default)
+            return default
+        if value <= 0:
+            logging.warning("%s must be positive - falling back to %s", name, default)
+            return default
+        return value
+
+    return (
+        _positive_float('BRANDKIT_CLEANUP_INTERVAL_HOURS', 1.0),
+        _positive_float('BRANDKIT_RETENTION_HOURS', 24.0),
+    )
+
+
+def start_cleanup_thread():
+    """Start the periodic upload/cache cleanup.
+
+    This used to live under `if __name__ == '__main__':`, which meant it never
+    ran under gunicorn - the server the Docker image actually uses - so
+    static/uploads/ grew without bound on every container deployment. It is now
+    started at import time, so both `python app.py` and `gunicorn app:app` get
+    it. Set BRANDKIT_CLEANUP_ENABLED=false to opt out (for example when a host
+    cron job already does this, or when running more than one worker and you
+    only want one of them sweeping).
+    """
+    if os.environ.get('BRANDKIT_CLEANUP_ENABLED', 'true').lower() in ('0', 'false', 'no'):
+        logging.info("Scheduled cleanup disabled via BRANDKIT_CLEANUP_ENABLED")
+        return None
+
+    interval_hours, retention_hours = _cleanup_settings()
+
+    def scheduled_cleanup():
+        while True:
+            time.sleep(interval_hours * 3600)
+            try:
+                cleanup_old_files(max_age_hours=retention_hours)
                 cleanup_memory()
-        
-        # Start cleanup thread
-        cleanup_thread = threading.Thread(target=scheduled_cleanup, daemon=True)
-        cleanup_thread.start()
-    
+            except Exception:
+                # A failed sweep must never kill the thread; the next tick retries.
+                logging.exception("Scheduled cleanup failed")
+
+    thread = threading.Thread(
+        target=scheduled_cleanup, name='brandkit-cleanup', daemon=True
+    )
+    thread.start()
+    logging.info(
+        "Scheduled cleanup started: every %sh, deleting files older than %sh",
+        interval_hours, retention_hours
+    )
+    return thread
+
+
+# Started on import so that it also runs under gunicorn, not just `python app.py`.
+_cleanup_thread = start_cleanup_thread()
+
+
+if __name__ == '__main__':
     is_debug = os.environ.get('FLASK_ENV') == 'development'
-    app.run(port=8000, debug=is_debug)
+    port = int(os.environ.get('PORT', 8000))
+    app.run(port=port, debug=is_debug)

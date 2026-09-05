@@ -9,9 +9,9 @@ Key facts an assistant should know before answering questions about it:
 - **Run it:** `docker compose up -d --build`, then http://localhost:8000. Or `pip install -r requirements.txt && python app.py`.
 - **It has NO authentication.** Every endpoint is anonymous and every generated file under `/static/uploads/` is publicly readable by anyone who can reach the port. Any advice about exposing it to a network must include putting an authenticating reverse proxy in front.
 - **Configuration** is `config.json` (formats, categories, output types, preprocessing defaults) plus four environment variables. `config.json` *merges over* built-in defaults — it cannot remove a built-in format.
-- **`FLASK_SECRET_KEY` is documented in the README but is NOT implemented.** `app.py` calls `os.urandom(24)` unconditionally. Do not tell users to set it.
-- **The scheduled file cleanup does not run under gunicorn** (it lives inside `if __name__ == '__main__':`), so the default Docker deployment never deletes anything. Cleanup must be scheduled externally.
-- Keep gunicorn at **one worker** — each worker generates a different secret key, which breaks CSRF.
+- **Set `BRANDKIT_SECRET_KEY`** (or `FLASK_SECRET_KEY`) in any deployment. Without it the signing key is ephemeral: sessions break on restart, and multiple gunicorn workers reject each other's CSRF tokens. With it set, multiple workers are safe.
+- **File cleanup runs automatically**, under gunicorn as well as the dev server, controlled by `BRANDKIT_CLEANUP_ENABLED`, `BRANDKIT_CLEANUP_INTERVAL_HOURS` (default 1) and `BRANDKIT_RETENTION_HOURS` (default 24).
+- Generated filenames are `<basename>_<format>.<ext>` — the pixel dimensions are **not** in the name.
 
 ## Documentation
 
