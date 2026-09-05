@@ -4,12 +4,24 @@
 
 BrandKit is a web application designed to streamline the creation of brand assets. Upload one source image (like your logo), select desired formats, and BrandKit intelligently resizes, pads, and exports everything you need for websites, web apps, social media, and more. It uses Flask, Pillow, and Alpine.js, and is fully containerized for easy deployment.
 
+[![Documentation](https://img.shields.io/badge/docs-brandkit-2563eb.svg)](https://fabriziosalmi.github.io/brandkit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg?logo=docker)](https://www.docker.com/)
+[![CI](https://github.com/fabriziosalmi/brandkit/actions/workflows/ci.yml/badge.svg)](https://github.com/fabriziosalmi/brandkit/actions/workflows/ci.yml)
+
+> **📖 Full documentation: <https://fabriziosalmi.github.io/brandkit/>**
+>
+> [Getting started](https://fabriziosalmi.github.io/brandkit/guide/getting-started) ·
+> [Configuration](https://fabriziosalmi.github.io/brandkit/reference/configuration) ·
+> [HTTP endpoints](https://fabriziosalmi.github.io/brandkit/reference/http-api) ·
+> [Deployment](https://fabriziosalmi.github.io/brandkit/guide/deployment) ·
+> [Security](https://fabriziosalmi.github.io/brandkit/security) ·
+> [Privacy](https://fabriziosalmi.github.io/brandkit/privacy)
 
 ## Table of Contents
 
+- [Documentation](https://fabriziosalmi.github.io/brandkit/)
 - [Screenshots](#screenshots)
 - [Key Features](#key-features)
 - [Technology Stack](#technology-stack)
@@ -286,7 +298,7 @@ Before you begin, ensure you have the following installed:
 5. **Access the application:**
    Open your browser and navigate to [http://localhost:8000](http://localhost:8000)
 
-### Local Development Setup
+### Running Without Docker
 - **Python 3.11+ Required**
 - Run locally:
   ```sh
@@ -319,7 +331,9 @@ Configure BrandKit behavior using environment variables:
 - `FLASK_ENV=development` - Enable debug mode with auto-reload and detailed error pages
 - `FLASK_ENV=production` - Run in production mode with optimizations and scheduled cleanup
 - `BRANDKIT_MAX_UPLOAD_MB=16` - Set maximum upload file size in megabytes (default: 16MB)
-- `FLASK_SECRET_KEY` - Custom secret key for session management (auto-generated if not set)
+- ~~`FLASK_SECRET_KEY`~~ - **Not implemented.** `app.py` calls `os.urandom(24)` unconditionally,
+  so the key is regenerated on every start and differs per process. Keep gunicorn at one worker.
+  See <https://fabriziosalmi.github.io/brandkit/reference/environment>
 
 **Example:**
 ```bash

@@ -1,0 +1,123 @@
+/**
+ * BrandKit docs theme.
+ * The palette is the same blue the application itself uses (#3b82f6 family),
+ * so the docs and the product read as one thing.
+ */
+
+:root {
+  --vp-c-brand-1: #2563eb;
+  --vp-c-brand-2: #3b82f6;
+  --vp-c-brand-3: #60a5fa;
+  --vp-c-brand-soft: rgba(59, 130, 246, 0.14);
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, #60a5fa 30%, #2563eb);
+
+  --vp-home-hero-image-background-image: linear-gradient(
+    -45deg,
+    rgba(96, 165, 250, 0.55) 50%,
+    rgba(37, 99, 235, 0.55) 50%
+  );
+  --vp-home-hero-image-filter: blur(48px);
+}
+
+.dark {
+  --vp-c-brand-1: #7dabf8;
+  --vp-c-brand-2: #60a5fa;
+  --vp-c-brand-3: #3b82f6;
+  --vp-c-brand-soft: rgba(96, 165, 250, 0.16);
+}
+
+/* The hero image is a 64px SVG; without a cap it renders enormous. */
+.VPHero .VPImage {
+  max-width: 180px;
+  max-height: 180px;
+}
+
+/* Tables carry most of the reference content, so make them legible:
+   no horizontal page scroll, headers that survive a long column. */
+.vp-doc table {
+  display: table;
+  width: 100%;
+  table-layout: auto;
+}
+
+.vp-doc th {
+  font-size: 0.85em;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-2);
+  font-weight: 600;
+}
+
+.vp-doc td code,
+.vp-doc th code {
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+/* Wide tables scroll inside their own box rather than the page. */
+.vp-doc div[class*='language-'],
+.vp-doc .table-wrapper {
+  overflow-x: auto;
+}
+
+/* <kbd> is used throughout the shortcuts pages. */
+.vp-doc kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  border: 1px solid var(--vp-c-divider);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--vp-c-bg-soft);
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.8em;
+  line-height: 1.4;
+  color: var(--vp-c-text-1);
+  white-space: nowrap;
+}
+
+/* Checklists in the deployment / contributing pages. A hanging indent keeps
+   the inline flow intact (flex on the label would break inline spacing) while
+   wrapping lines line up under the text, not under the checkbox. */
+.vp-doc li.task-list-item {
+  list-style: none;
+  margin-left: -1.5em;
+  padding-left: 1.5em;
+  text-indent: -1.5em;
+}
+
+.vp-doc li.task-list-item > label {
+  text-indent: 0;
+}
+
+.vp-doc li.task-list-item input[type='checkbox'] {
+  width: 1em;
+  height: 1em;
+  margin: 0 0.5em 0 0;
+  translate: 0 0.1em;
+  accent-color: var(--vp-c-brand-1);
+}
+
+/* Home-page feature cards: a touch more separation than the default. */
+.VPFeature {
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.VPFeature:hover {
+  border-color: var(--vp-c-brand-2);
+  transform: translateY(-2px);
+}
+
+/* Footer links inherit the muted footer colour by default, which makes the
+   privacy / security / security.txt links invisible. */
+.VPFooter .message a {
+  color: var(--vp-c-brand-1);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Long code samples in the deployment page benefit from a little more room. */
+.vp-doc div[class*='language-'] pre {
+  padding: 18px 0;
+}
