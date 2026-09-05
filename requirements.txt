@@ -49,7 +49,7 @@ rpds-py==0.29.0
 scikit-image==0.26.0
 scipy==1.16.3
 sympy==1.14.0
-tifffile==2025.10.16
+tifffile==2026.8.23
 tqdm==4.67.1
 typing_extensions==4.15.0
 urllib3==2.7.0
