@@ -127,6 +127,10 @@ For operators upgrading from v1.1.3, these were documented gaps that are now fix
 
 Dependencies are pinned exactly in `requirements.txt` and watched by Dependabot and OSV. The image-processing stack — Pillow above all — is a frequent source of advisories, because parsing untrusted image formats in C is exactly the kind of thing that produces heap overflows.
 
+Dependabot is configured for **security updates only** (`.github/dependabot.yml` sets `open-pull-requests-limit: 0` on every ecosystem). Routine version bumps are not opened automatically: across pip, npm, GitHub Actions and Docker they arrive a dozen at a time and most need a judgement call — a new Python base image, a major action bump, a transitive pin that would violate another package's ceiling. Advisories are the part that has to move quickly, so that is what is automated.
+
+The practical consequence for anyone running BrandKit: **a quiet PR queue does not mean your dependencies are current**, only that nothing has an open advisory. Upgrade deliberately as well.
+
 **Keep Pillow current. It is the single most security-relevant dependency in this project**, and it is the one that sits directly in front of attacker-controlled bytes.
 
 ```bash

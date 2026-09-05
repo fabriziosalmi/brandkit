@@ -1,39 +1,52 @@
-# Keep both toolchains patched automatically.
+# Dependabot: SECURITY UPDATES ONLY.
 #
-# The Python side is what runs in production and processes untrusted images;
-# Pillow in particular is the dependency that matters most (see
-# https://fabriziosalmi.github.io/brandkit/security#dependency-security).
+# `open-pull-requests-limit: 0` disables *version* updates for an ecosystem.
+# Security updates are controlled by the repository's "Dependabot security
+# updates" setting and keep flowing regardless — this file still shapes them
+# (labels, commit prefixes, grouping).
 #
-# The npm side only builds the documentation site. Nothing from it is served —
-# GitHub Pages hosts the static output — so its advisories are almost always
-# dev-server issues. They are still worth patching, because contributors run
-# `npm run docs:dev` locally.
+# Why security-only: a routine version sweep across four ecosystems opens a
+# dozen PRs at once, most of which need a judgement call this project does not
+# have the review capacity for (a new Python base image, a major actions bump,
+# a transitive pin that would break `numba`'s llvmlite ceiling). Advisories are
+# the part that actually has to be acted on quickly.
+#
+# To re-enable routine updates for an ecosystem, raise its limit above 0.
 version: 2
 updates:
+  # The Python side is what runs in production and parses untrusted images.
+  # Pillow in particular sits directly in front of attacker-controlled bytes:
+  # https://fabriziosalmi.github.io/brandkit/security#dependency-security
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     commit-message:
       prefix: "build(deps)"
     labels:
       - "dependencies"
       - "python"
+      - "security"
 
+  # The npm side only builds the documentation site. Nothing from it is served
+  # — GitHub Pages hosts the static output — so its advisories are almost
+  # always dev-server issues. Still worth patching: contributors run
+  # `npm run docs:dev` locally.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 0
     commit-message:
       prefix: "build(deps)"
     labels:
       - "dependencies"
       - "docs"
+      - "security"
     groups:
-      # VitePress drags in the whole Vite toolchain; updating it piecemeal
-      # produces noise and conflicting lockfile changes.
+      # VitePress drags in the whole Vite toolchain; patching it piecemeal
+      # produces conflicting lockfile changes.
       vitepress:
         patterns:
           - "vitepress"
@@ -45,18 +58,22 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    open-pull-requests-limit: 0
     commit-message:
       prefix: "ci"
     labels:
       - "dependencies"
       - "ci"
+      - "security"
 
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "monthly"
+    open-pull-requests-limit: 0
     commit-message:
       prefix: "build(docker)"
     labels:
       - "dependencies"
       - "docker"
+      - "security"
