@@ -44,7 +44,7 @@ Researchers are credited unless they prefer to stay anonymous.
 
 ### Supported versions
 
-Only the latest release receives security updates. Currently that is **v1.1.3**.
+Only the latest release receives security updates. Currently that is **v1.1.3**; the fixes listed under [Recently closed](#recently-closed) are on `main` and will ship in the next tag.
 
 ---
 
@@ -58,6 +58,7 @@ Only the latest release receives security updates. Currently that is **v1.1.3**.
 | **Rate limiting** | Flask-Limiter | 200/day, 50/hour globally; 5/min on `/upload`; `memory://` storage |
 | **Security headers** | Flask-Talisman | CSP, `X-Content-Type-Options`, `X-Frame-Options`, referrer policy |
 | **Upload size cap** | `MAX_CONTENT_LENGTH` | 16 MB by default, via `BRANDKIT_MAX_UPLOAD_MB` |
+| **Session secret** | `BRANDKIT_SECRET_KEY` | stable across restarts and workers when set; ephemeral with a warning when not |
 
 ### Content Security Policy
 
@@ -65,13 +66,12 @@ Only the latest release receives security updates. Currently that is **v1.1.3**.
 default-src 'self'
 img-src     'self' data: blob:
 script-src  'self' 'unsafe-inline' 'unsafe-eval'
-            https://cdn.tailwindcss.com/ https://cdn.jsdelivr.net/
 style-src   'self' 'unsafe-inline'
 ```
 
 `'unsafe-inline'` and `'unsafe-eval'` are required by Alpine.js, which evaluates expressions from `x-` attributes. That is a real weakening of the CSP and the price of the framework.
 
-The two CDN origins are **vestigial** — since v1.1.3 both libraries are vendored under `static/vendor/` and served same-origin, and the page makes no third-party requests. The CSP has not caught up; see [the gaps below](#known-hardening-gaps).
+No third-party origin is allowed: Tailwind and Alpine are vendored under `static/vendor/` and served same-origin, so nothing external can be loaded even if a script were injected.
 
 ### File handling
 
@@ -79,7 +79,7 @@ The two CDN origins are **vestigial** — since v1.1.3 both libraries are vendor
 - **`secure_filename()`** on every upload, plus a UUID prefix, so the stored name is `<uuid4>_<sanitised>`.
 - **Decode validation** — the file is opened with Pillow immediately. If that fails, the upload is deleted and the request is rejected with `400`.
 - **Mandatory EXIF stripping** — the image is re-encoded through a fresh `Image.new()` on receipt, discarding GPS coordinates, camera serials and every other tag. This is not optional and not tied to the `strip_metadata` switch.
-- **Scheduled deletion** — `cleanup_old_files()` removes anything older than 24 hours. See the caveat in [Performance](/guide/performance#file-cleanup).
+- **Scheduled deletion** — a background thread sweeps `static/uploads/` and its cache on an interval, deleting anything past the retention window (hourly, 24 hours, by default). Configurable via [`BRANDKIT_CLEANUP_INTERVAL_HOURS` and `BRANDKIT_RETENTION_HOURS`](/reference/environment).
 
 ### No third-party egress
 
@@ -91,50 +91,37 @@ Since v1.1.3, loading the page contacts nothing but your own server. The only ou
 
 These are real and currently unfixed. They are listed here rather than buried because operators need to make decisions around them.
 
-### The secret key is regenerated per process
-
-```python
-app.config['SECRET_KEY'] = os.urandom(24)
-```
-
-Set unconditionally at import time. Consequences:
-
-- **Every restart invalidates every session and CSRF token.** A user who had the page open gets a `400` on submit.
-- **Every gunicorn worker holds a different key.** With more than one worker, a token minted by worker A is rejected by worker B, so uploads fail roughly `(n−1)/n` of the time.
-
-`entrypoint.sh` does not pass `--workers`, so gunicorn's default of **1** applies and the second problem does not bite out of the box. **Do not add workers until this is fixed.**
-
-The project README documents a `FLASK_SECRET_KEY` environment variable. It is not implemented — nothing reads it. See [Environment variables](/reference/environment#not-implemented).
-
-### The CSP still allows two CDN origins
-
-`script-src` permits `cdn.tailwindcss.com` and `cdn.jsdelivr.net` even though nothing loads from them any more. It does not create a vulnerability by itself, but it widens the set of origins an injected script could be loaded from, and it undercuts the point of vendoring. Removing both entries is a one-line change with no functional impact.
-
-### `/download-zip/<filename>` does not normalise its path
-
-```python
-zip_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-```
-
-There is no `secure_filename()` call and no check that the resolved path stays inside the upload folder. Flask's default URL converter does not match `/`, which is what prevents straightforward traversal, so this is defence-in-depth rather than a live exploit — but it is free to add and the current code depends on routing behaviour rather than on its own validation.
-
 ### Generated assets are world-readable
 
-Everything lands in `static/uploads/`, which Flask serves without any authorisation check, and filenames follow a predictable pattern. On any instance more than one person can reach, one user's assets are enumerable by another. **Authenticate at the proxy** — see [Deployment](/guide/deployment).
+Everything lands in `static/uploads/`, which Flask serves without any authorisation check, and filenames follow a predictable pattern (`<basename>_<format>.<ext>`). On any instance more than one person can reach, one user's assets are enumerable by another. **Authenticate at the proxy** — see [Deployment](/guide/deployment).
+
+This is the single most important thing to understand before exposing BrandKit to anyone else.
 
 ### Error strings are echoed to the client
 
 `/analyze` and parts of `/upload` interpolate the exception message into the JSON response. That can disclose filesystem paths and library internals. Low impact on a trusted network; another reason not to expose the service publicly.
 
-### Cleanup does not run under gunicorn
-
-The scheduled cleanup thread starts inside `if __name__ == '__main__':`, which gunicorn never executes. On a container deployment nothing is ever deleted and `static/uploads/` grows without bound — a disk-exhaustion risk as much as a privacy one. Workarounds in [Performance](/guide/performance#file-cleanup).
-
 ### No virus scanning
 
 Uploaded files are validated as decodable images and nothing more. If you accept files from untrusted people, scan them separately.
 
+### No test suite
+
+CI installs the dependencies and imports the module. There is no automated coverage of the upload path, the CSRF behaviour or the image pipeline, so regressions in any of them would not be caught before release. Contributions welcome — see [Contributing](/contributing#ci).
+
 ---
+
+## Recently closed
+
+For operators upgrading from v1.1.3, these were documented gaps that are now fixed:
+
+| Was | Now |
+| --- | --- |
+| `SECRET_KEY` regenerated per process, breaking CSRF across gunicorn workers | read from `BRANDKIT_SECRET_KEY` (or `FLASK_SECRET_KEY`), with a startup warning when unset |
+| CSP still allowed `cdn.tailwindcss.com` and `cdn.jsdelivr.net` | both removed; no third-party script origin is permitted |
+| `/download-zip/<filename>` joined the path without validating it | name is checked against `secure_filename()`, restricted to `.zip`, and the resolved path is confirmed to stay inside the upload folder |
+| The cleanup thread never ran under gunicorn | started at import time, so it runs under gunicorn too; interval and retention are configurable |
+| `zipfile36` pinned but never imported | removed |
 
 ## Dependency security
 
@@ -159,9 +146,10 @@ Rebuild the container after any bump: `docker compose up -d --build`.
 The full checklist is in [Deployment](/guide/deployment#production-checklist). The four that matter most:
 
 1. **Authenticate everything, including `/static/`.** Basic auth is enough for a small team; Cloudflare Access is better.
-2. **Terminate TLS at a proxy.** Talisman is configured with `force_https=False` and will not redirect or emit HSTS itself.
-3. **Never set `FLASK_ENV=development` on a reachable host.** The Werkzeug debugger is a remote shell.
-4. **Bind the container to `127.0.0.1`** and let only the proxy reach it.
+2. **Set `BRANDKIT_SECRET_KEY`.** Without it the key is ephemeral, sessions break on restart, and you cannot run more than one worker.
+3. **Terminate TLS at a proxy.** Talisman is configured with `force_https=False` and will not redirect or emit HSTS itself.
+4. **Never set `FLASK_ENV=development` on a reachable host.** The Werkzeug debugger is a remote shell.
+5. **Bind the container to `127.0.0.1`** and let only the proxy reach it.
 
 ---
 

@@ -180,11 +180,13 @@ Each selected format is rendered into each selected output type.
 ## Naming
 
 ```
-<source-basename>_<format-key>_<width>x<height>.<ext>
+<source-basename>_<format-key>.<ext>
 <source-basename>_favicon.ico
 ```
 
-With variations mode on, the variation label is inserted before the extension — `acme_social_1080x1080_Grayscale.png`.
+With variations mode on, the variation label is inserted between the basename and the format key — `acme_Grayscale_social.png`.
+
+The pixel dimensions are **not** part of the filename; the format key is what identifies the size.
 
 ## Notes on specific formats
 

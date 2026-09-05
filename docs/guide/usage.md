@@ -94,11 +94,12 @@ The result grid shows a thumbnail per generated asset with its name and dimensio
 Files are named predictably:
 
 ```
-<source-basename>_<format>_<width>x<height>.<ext>
+<source-basename>_<format>.<ext>
+<source-basename>_<variation>_<format>.<ext>   # variations mode
 <source-basename>_favicon.ico
 ```
 
-so `acme-logo.png` uploaded and rendered for `website` gives you `acme-logo_website_1200x630.png`.
+so `acme-logo.png` rendered for `website` gives you `acme-logo_website.png`. The pixel dimensions are not in the name — look them up in the [format catalogue](/reference/format-catalogue), or read `dimensions` from the JSON response.
 
 ::: warning Generated files are publicly readable
 Assets are served out of `/static/uploads/`, which Flask exposes without authentication. Anyone who knows or guesses a filename can fetch it. On a public deployment, put an authenticating proxy in front of the whole app — see [Deployment](/guide/deployment) and [Privacy](/privacy).

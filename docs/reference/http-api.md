@@ -137,8 +137,8 @@ Defaults for most of these come from `preprocessing_options` in [`config.json`](
       "description": "Standard website banner",
       "outputs": {
         "png": {
-          "path": "static/uploads/acme_website_1200x630.png",
-          "url": "/static/uploads/acme_website_1200x630.png"
+          "path": "static/uploads/acme_website.png",
+          "url": "/static/uploads/acme_website.png"
         }
       }
     },
@@ -231,10 +231,10 @@ Streams an archive from the upload folder as an attachment.
 curl -OJ http://localhost:8000/download-zip/acme_brandkit_20260905143012.zip
 ```
 
-Returns `404` with `{"error": "File not found"}` if the file is gone — for example after the 24-hour cleanup has run.
+The filename is validated: it must survive `secure_filename()` unchanged, end in `.zip`, and resolve to a path inside the upload folder. Anything else — including traversal attempts — returns `404`, as does a file that has already been swept by the retention cleanup.
 
-::: danger Unauthenticated, and so is `/static/uploads/`
-This route performs no authorisation check, and every generated file is *also* reachable directly under `/static/uploads/<name>`. Filenames are predictable (`<basename>_<format>_<w>x<h>.<ext>`), so on a shared instance one user's assets are guessable by another. Authenticate at the proxy. See [Privacy](/privacy).
+::: danger The route is unauthenticated, and so is `/static/uploads/`
+Validation stops path traversal, not access. This route performs no authorisation check, and every generated file is *also* reachable directly under `/static/uploads/<name>`. Filenames are predictable (`<basename>_<format>.<ext>`), so on a shared instance one user's assets are guessable by another. Authenticate at the proxy. See [Privacy](/privacy).
 :::
 
 ---

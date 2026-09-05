@@ -52,37 +52,52 @@ That last one is worth knowing about: the upload path builds a Python list of ev
 
 - Cap the container: `deploy.resources.limits.memory: 4G`
 - Lower `BRANDKIT_MAX_UPLOAD_MB` from 16 to something matched to your actual sources
-- Leave gunicorn at one worker (each worker is a full copy of the ONNX session)
+- Keep the gunicorn worker count low — each worker holds its own ONNX session, so memory scales linearly with workers, not with traffic
 - Do not use variations mode on the print formats
 
 ## File cleanup
 
-`cleanup_old_files()` deletes anything in `static/uploads/` and `static/uploads/cache/` older than **24 hours**, skipping `README.md`. It reports how many files it removed and how much space it recovered.
+A daemon thread sweeps `static/uploads/` and `static/uploads/cache/`, deleting anything past the retention window and skipping `README.md`. It logs how many files it removed and how much space it recovered.
 
-::: danger The cleanup thread does not run under gunicorn
-The scheduled cleanup thread is started inside `if __name__ == '__main__':`. When the app is served by gunicorn — which is what `entrypoint.sh` prefers, and therefore what the Docker image actually does — that block never executes, and **nothing is ever deleted**.
+It is started **at import time**, so it runs under gunicorn — the server the Docker image actually uses — as well as under `python app.py`.
 
-On a long-running deployment `static/uploads/` grows without bound.
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `BRANDKIT_CLEANUP_ENABLED` | `true` | set to `false` to turn the thread off entirely |
+| `BRANDKIT_CLEANUP_INTERVAL_HOURS` | `1` | how often it sweeps |
+| `BRANDKIT_RETENTION_HOURS` | `24` | how old a file must be to be deleted |
+
+Both interval and retention accept fractional hours, so `0.25` is fifteen minutes. A sweep that throws is logged and the thread survives to try again on the next tick.
+
+::: tip Shorten the retention
+24 hours is a long time for files that anyone who can reach the instance can fetch. If people use BrandKit interactively and download immediately, an hour is a much better privacy posture:
+
+```bash
+BRANDKIT_RETENTION_HOURS=1
+BRANDKIT_CLEANUP_INTERVAL_HOURS=0.25
+```
+
+See [Privacy](/privacy#retention).
 :::
 
-Until that is fixed upstream, schedule it externally. A host cron entry against the bind mount:
+### Running the sweep by hand
+
+```bash
+docker compose exec brandkit python -c "import app; print(app.cleanup_old_files(max_age_hours=1))"
+```
+
+### Handing cleanup to the host instead
+
+If you would rather a cron job owned it — for example because you run several workers and want exactly one process deleting — disable the thread and sweep the bind mount:
+
+```bash
+BRANDKIT_CLEANUP_ENABLED=false
+```
 
 ```bash
 # every hour, delete upload artefacts older than 24h
 0 * * * * find /srv/brandkit/static/uploads -type f -mmin +1440 ! -name README.md -delete
 ```
-
-Or from inside the container, which reuses the app's own logic:
-
-```bash
-docker compose exec brandkit python -c "import app; print(app.cleanup_old_files())"
-```
-
-Wrap that in a systemd timer or a cron job on the host.
-
-::: tip Shorten the retention
-24 hours is a long time for files that anyone can fetch by URL. If people use BrandKit interactively and download immediately, `-mmin +60` is a much better privacy posture. See [Privacy](/privacy#retention).
-:::
 
 ## Rate limits
 

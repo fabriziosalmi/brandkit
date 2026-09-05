@@ -35,14 +35,14 @@ services:
     volumes:
       - ./static/uploads:/app/static/uploads
     environment:
-      - FLASK_ENV=production
+      - FLASK_ENV=production        # legacy, no longer does anything
     restart: unless-stopped
 ```
 
 Three things worth knowing:
 
 - **The bind mount is a bind mount, not a named volume.** `./static/uploads` on your host *is* the app's upload directory. Everything anyone generates lands in your working copy. Add it to `.gitignore` (it already is) and read [Privacy](/privacy).
-- **`FLASK_ENV=production`** is what enables the scheduled cleanup thread in the development server path. Under gunicorn — which is what the container actually runs — that thread does not start; see [Performance & caching](/guide/performance#file-cleanup) for the workaround.
+- **`FLASK_ENV=production` is now a no-op** and can be dropped. It used to gate the cleanup thread; cleanup is controlled by the [`BRANDKIT_CLEANUP_*` variables](/reference/environment#the-cleanup-variables) and runs under gunicorn regardless.
 - **The port is fixed at 8000 inside the container.** Change the left-hand side only: `"127.0.0.1:9000:8000"` to bind on a different host port and stop exposing it on every interface.
 
 ## Running without Compose
@@ -78,10 +78,10 @@ Expect a build of several minutes and a final image around 2 GB. That is the cos
 
 It also creates `static/uploads` if it is missing and honours `PORT` (default `8000`).
 
-::: warning gunicorn worker count and CSRF
-`app.config['SECRET_KEY']` is generated with `os.urandom(24)` at import time, so **every gunicorn worker gets a different key**. With more than one worker, CSRF tokens issued by worker A are rejected by worker B and uploads fail intermittently.
+::: warning Set a secret key before adding workers
+The entrypoint does not pass `--workers`, so gunicorn's default of **1** applies. If you raise it, set [`BRANDKIT_SECRET_KEY`](/reference/environment#brandkit-secret-key) first — without it each worker generates its own signing key and CSRF tokens minted by one worker are rejected by the next.
 
-The entrypoint does not pass `--workers`, so gunicorn's default of **1** applies and this is not a problem out of the box. Do not add workers until the secret key is made stable across processes. Track it in [issue-worthy notes](/security#known-hardening-gaps).
+With several workers you probably also want `BRANDKIT_CLEANUP_ENABLED=false` on all but one, so a single process owns the file sweep.
 :::
 
 ## Updating

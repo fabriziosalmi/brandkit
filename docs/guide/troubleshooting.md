@@ -75,11 +75,13 @@ The app falls back to built-in defaults rather than crashing, which is why the s
 
 Expected if you are calling `/upload` with `curl` or a script. Every `POST` needs a valid CSRF token; see [HTTP endpoints](/reference/http-api#authentication-and-csrf) for how to obtain one.
 
-If it happens **in the browser**, the usual causes are:
+If it happens **in the browser**, the usual causes are all the same root problem — no stable [`BRANDKIT_SECRET_KEY`](/reference/environment#brandkit-secret-key):
 
-- more than one gunicorn worker, each with a different `SECRET_KEY` — see [the known gap](/security#known-hardening-gaps)
+- more than one gunicorn worker, each having generated its own ephemeral key
 - the app restarted between page load and submit, regenerating the key
-- cookies blocked for the origin
+- (unrelated) cookies blocked for the origin
+
+Check the startup log for `No BRANDKIT_SECRET_KEY set`. Setting it fixes the first two.
 
 ### `413 Request Entity Too Large`
 
@@ -159,7 +161,15 @@ In Docker, check that the bind-mounted host directory is writable by the contain
 
 ### `static/uploads/` has grown to gigabytes
 
-The scheduled cleanup does not run under gunicorn. This is expected behaviour today, not a misconfiguration on your part. Schedule it yourself — the recipes are in [Performance & caching](/guide/performance#file-cleanup).
+Check whether the sweep is running at all — the startup log should say:
+
+```
+Scheduled cleanup started: every 1.0h, deleting files older than 24.0h
+```
+
+If it says `Scheduled cleanup disabled via BRANDKIT_CLEANUP_ENABLED`, that is why. If it is running but the directory is still large, the retention window is simply longer than your throughput; lower `BRANDKIT_RETENTION_HOURS`. Details in [Performance & caching](/guide/performance#file-cleanup).
+
+Note the sweep only runs while the container is up. A stopped container leaves the bind-mounted directory untouched.
 
 ## Still stuck
 

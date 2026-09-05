@@ -69,7 +69,7 @@ Drop in a logo, tick the formats you want, hit **Generate**, download the ZIP. T
 
 ## What you get back
 
-A single archive containing every selected format in every selected output type, named predictably (`<yourlogo>_website_1200x630.png`, `<yourlogo>_favicon.ico`, …), plus a preview grid in the browser so you can check each crop before you download.
+A single archive containing every selected format in every selected output type, named predictably (`<yourlogo>_website.png`, `<yourlogo>_favicon.ico`, …), plus a preview grid in the browser so you can check each crop before you download.
 
 ## Where to go next
 
