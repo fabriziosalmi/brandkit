@@ -35,7 +35,7 @@ jobs:
         with:
           fetch-depth: 0        # VitePress reads git history for "last updated"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
