@@ -1,0 +1,36 @@
+# Security contact information for the BrandKit project.
+# Format: RFC 9116 — https://www.rfc-editor.org/rfc/rfc9116
+#
+# NOTE ON LOCATION
+# This documentation site is published under a path prefix
+# (https://fabriziosalmi.github.io/brandkit/), so this file is served from
+# https://fabriziosalmi.github.io/brandkit/.well-known/security.txt
+# rather than the origin root that RFC 9116 specifies. The origin root is
+# controlled by GitHub, not by this project. Treat the policy URL below as
+# authoritative.
+
+Contact: mailto:fabrizio.salmi@gmail.com
+Contact: https://github.com/fabriziosalmi/brandkit/security/advisories/new
+
+Expires: 2027-09-05T00:00:00.000Z
+
+Preferred-Languages: en, it
+
+Canonical: https://fabriziosalmi.github.io/brandkit/.well-known/security.txt
+
+Policy: https://fabriziosalmi.github.io/brandkit/security
+Policy: https://github.com/fabriziosalmi/brandkit/security/policy
+
+Acknowledgments: https://github.com/fabriziosalmi/brandkit/security/advisories
+
+# Scope
+#   In scope:  the BrandKit source code published at
+#              https://github.com/fabriziosalmi/brandkit
+#   Out of scope:
+#              - third-party deployments of BrandKit that this project does
+#                not operate; report those to whoever runs them
+#              - github.io / GitHub Pages infrastructure itself; report to
+#                https://hackerone.com/github
+#
+# Please do NOT open a public GitHub issue for a security vulnerability.
+# Expected acknowledgement: within 48 hours.

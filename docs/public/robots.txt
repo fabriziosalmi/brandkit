@@ -1,0 +1,10 @@
+# https://fabriziosalmi.github.io/brandkit/
+# BrandKit documentation
+
+User-agent: *
+Allow: /
+
+Sitemap: https://fabriziosalmi.github.io/brandkit/sitemap.xml
+
+# Machine-readable summary for LLMs and agents:
+# https://fabriziosalmi.github.io/brandkit/llms.txt

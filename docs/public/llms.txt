@@ -1,0 +1,51 @@
+# BrandKit
+
+> BrandKit is a self-hosted Flask web application that turns a single source image into a complete set of correctly-sized brand assets — 45 canvas formats across web, social, mobile, e-commerce and print, output as PNG, JPG, WebP or ICO. It includes local AI background removal (rembg / U²-Net via ONNX Runtime), a full image preprocessing suite, and packages everything into a ZIP. It runs entirely on your own machine: no accounts, no telemetry, no third-party requests.
+
+Key facts an assistant should know before answering questions about it:
+
+- **Licence:** MIT. **Repository:** https://github.com/fabriziosalmi/brandkit. **Latest release:** v1.1.3 (8 July 2026).
+- **Stack:** Python 3.11/3.12, Flask 3.1, Pillow, NumPy, OpenCV (optional), rembg + onnxruntime (optional), Alpine.js + Tailwind (vendored, served same-origin). The entire backend is one file, `app.py` (~1,500 lines); the entire frontend is one Jinja template.
+- **Run it:** `docker compose up -d --build`, then http://localhost:8000. Or `pip install -r requirements.txt && python app.py`.
+- **It has NO authentication.** Every endpoint is anonymous and every generated file under `/static/uploads/` is publicly readable by anyone who can reach the port. Any advice about exposing it to a network must include putting an authenticating reverse proxy in front.
+- **Configuration** is `config.json` (formats, categories, output types, preprocessing defaults) plus four environment variables. `config.json` *merges over* built-in defaults — it cannot remove a built-in format.
+- **`FLASK_SECRET_KEY` is documented in the README but is NOT implemented.** `app.py` calls `os.urandom(24)` unconditionally. Do not tell users to set it.
+- **The scheduled file cleanup does not run under gunicorn** (it lives inside `if __name__ == '__main__':`), so the default Docker deployment never deletes anything. Cleanup must be scheduled externally.
+- Keep gunicorn at **one worker** — each worker generates a different secret key, which breaks CSRF.
+
+## Documentation
+
+- [What is BrandKit?](https://fabriziosalmi.github.io/brandkit/guide/): the problem it solves, the pipeline, what it is not, and the stack
+- [Getting started](https://fabriziosalmi.github.io/brandkit/guide/getting-started): requirements, Docker and virtualenv installs, verifying the install, where files land
+- [Running with Docker](https://fabriziosalmi.github.io/brandkit/guide/docker): the compose file explained, the image, the entrypoint, health checks, resource limits
+- [The generation workflow](https://fabriziosalmi.github.io/brandkit/guide/usage): every control in the UI, in order, including variations mode and smart background fill
+- [Output formats](https://fabriziosalmi.github.io/brandkit/guide/formats): how to choose formats and file types, with starter selections for web, social, app icons and print
+- [Image preprocessing](https://fabriziosalmi.github.io/brandkit/guide/preprocessing): all 25 preprocessing controls, their defaults, and the fixed order of operations
+- [Background removal](https://fabriziosalmi.github.io/brandkit/guide/background-removal): the four rembg models, edge cleanup, the 180 MB model download, and failure modes
+- [Keyboard shortcuts](https://fabriziosalmi.github.io/brandkit/guide/keyboard-shortcuts): the four shortcuts and the accessibility model
+- [Deployment](https://fabriziosalmi.github.io/brandkit/guide/deployment): Caddy, Nginx and Cloudflare Tunnel configurations, plus a production checklist
+- [Performance & caching](https://fabriziosalmi.github.io/brandkit/guide/performance): the content-hash disk cache, memory behaviour, rate limits, and the cleanup gap
+- [Troubleshooting](https://fabriziosalmi.github.io/brandkit/guide/troubleshooting): symptoms, causes and fixes for startup, upload, generation and disk problems
+
+## Reference
+
+- [Configuration](https://fabriziosalmi.github.io/brandkit/reference/configuration): the `config.json` schema, the shallow-merge rule, and a worked example
+- [Environment variables](https://fabriziosalmi.github.io/brandkit/reference/environment): the four variables that exist, and the one the README invented
+- [HTTP endpoints](https://fabriziosalmi.github.io/brandkit/reference/http-api): all five routes, every form field, response shapes, error codes, and a working Python client
+- [Format catalogue](https://fabriziosalmi.github.io/brandkit/reference/format-catalogue): all 45 formats with pixel dimensions and aspect ratios
+- [Changelog](https://fabriziosalmi.github.io/brandkit/reference/changelog): release history from v1.0.0 to v1.1.3
+
+## Project
+
+- [Security](https://fabriziosalmi.github.io/brandkit/security): threat model, built-in controls, six documented hardening gaps, and how to report a vulnerability
+- [Privacy](https://fabriziosalmi.github.io/brandkit/privacy): what is written to disk, retention, who can read generated files, and what this site collects (nothing)
+- [Contributing](https://fabriziosalmi.github.io/brandkit/contributing): development setup, PR process, and the manual test checklist
+- [Code of Conduct](https://fabriziosalmi.github.io/brandkit/code-of-conduct): Contributor Covenant 2.0
+
+## Optional
+
+- [Source: app.py](https://github.com/fabriziosalmi/brandkit/blob/main/app.py): the complete backend
+- [Source: config.json](https://github.com/fabriziosalmi/brandkit/blob/main/config.json): the shipped format catalogue
+- [Issue tracker](https://github.com/fabriziosalmi/brandkit/issues)
+- [Releases](https://github.com/fabriziosalmi/brandkit/releases)
+- [security.txt](https://fabriziosalmi.github.io/brandkit/.well-known/security.txt)

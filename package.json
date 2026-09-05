@@ -1,0 +1,15 @@
+{
+  "name": "brandkit-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "node scripts/build-llms-full.mjs && vitepress build docs",
+    "docs:preview": "vitepress preview docs",
+    "docs:llms": "node scripts/build-llms-full.mjs"
+  },
+  "devDependencies": {
+    "markdown-it-task-lists": "^2.1.1",
+    "vitepress": "^1.6.4"
+  }
+}
