@@ -1,0 +1,62 @@
+# Keep both toolchains patched automatically.
+#
+# The Python side is what runs in production and processes untrusted images;
+# Pillow in particular is the dependency that matters most (see
+# https://fabriziosalmi.github.io/brandkit/security#dependency-security).
+#
+# The npm side only builds the documentation site. Nothing from it is served —
+# GitHub Pages hosts the static output — so its advisories are almost always
+# dev-server issues. They are still worth patching, because contributors run
+# `npm run docs:dev` locally.
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "build(deps)"
+    labels:
+      - "dependencies"
+      - "python"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "build(deps)"
+    labels:
+      - "dependencies"
+      - "docs"
+    groups:
+      # VitePress drags in the whole Vite toolchain; updating it piecemeal
+      # produces noise and conflicting lockfile changes.
+      vitepress:
+        patterns:
+          - "vitepress"
+          - "vite"
+          - "esbuild"
+          - "@vitejs/*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
+      - "ci"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "build(docker)"
+    labels:
+      - "dependencies"
+      - "docker"
