@@ -172,7 +172,7 @@ The free plan caps request bodies at 100 MB, and the practical limit for a slow 
 - [ ] Retention shortened from the 24-hour default if the instance is shared — see [Performance](/guide/performance#file-cleanup)
 - [ ] `BRANDKIT_SECRET_KEY` set to a stable value ([why](/reference/environment#brandkit-secret-key)) — required before raising the gunicorn worker count
 - [ ] `FLASK_ENV` **not** set to `development` (that would enable the debugger)
-- [ ] Dependencies current — `pip install -r requirements.txt --upgrade` and watch Dependabot
+- [ ] Dependencies current — Dependabot only opens PRs for advisories, so check `pip list --outdated` / `pip-audit` yourself too
 
 ## HTTPS and Talisman
 
