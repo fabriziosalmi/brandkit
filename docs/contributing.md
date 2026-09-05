@@ -106,6 +106,21 @@ npm run docs:build    # production build, catches dead links
 
 `docs:build` fails on broken internal links, so run it before pushing.
 
+::: info Why `package.json` has an `overrides` block
+VitePress 1.6.4 pins Vite 5, which is no longer receiving fixes for a set of dev-server advisories (a `server.fs.deny` bypass, a path traversal in optimized-deps `.map` handling, and the esbuild CORS issue). VitePress 2 is still alpha, so the toolchain is pulled forward with npm `overrides` instead:
+
+```json
+"overrides": {
+  "esbuild": "^0.25.12",
+  "vite": "^6.4.3"
+}
+```
+
+The combination is verified — the site builds and renders correctly — but it is ahead of what VitePress 1.6 declares. If a build breaks after a dependency bump, this block is the first thing to look at. Drop it once VitePress 2 is stable.
+
+None of this reaches the published site: GitHub Pages serves static output, so Vite exists only at build time and in `npm run docs:dev`.
+:::
+
 ## Style
 
 **Python** — PEP 8, four spaces, `snake_case`. Docstrings on any function that is not obvious. Prefer clarity over cleverness; this codebase is read far more often than it is written.

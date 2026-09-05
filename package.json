@@ -11,5 +11,9 @@
   "devDependencies": {
     "markdown-it-task-lists": "^2.1.1",
     "vitepress": "^1.6.4"
+  },
+  "overrides": {
+    "esbuild": "^0.25.12",
+    "vite": "^6.4.3"
   }
 }
