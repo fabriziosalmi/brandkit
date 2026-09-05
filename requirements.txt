@@ -45,7 +45,7 @@ referencing==0.37.0
 rembg==2.0.75
 requests==2.33.0
 rich==14.2.0
-rpds-py==0.29.0
+rpds-py==2026.6.3
 scikit-image==0.26.0
 scipy==1.16.3
 sympy==1.14.0
