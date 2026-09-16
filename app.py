@@ -6,6 +6,8 @@ import traceback
 from datetime import datetime
 from flask import (
     Flask,
+    g,
+    has_request_context,
     jsonify,
     redirect,
     render_template,
@@ -67,11 +69,38 @@ from cleanup import (
     start_cleanup_thread,
 )
 
-# Configure logging
+# Configure logging with request correlation ID
+class RequestIdFilter(logging.Filter):
+    """Filter ensuring %(request_id)s is populated for log formatting."""
+    def filter(self, record):
+        if not hasattr(record, 'request_id'):
+            if has_request_context():
+                record.request_id = getattr(g, 'request_id', '-')
+            else:
+                record.request_id = '-'
+        return True
+
+
+_old_log_factory = logging.getLogRecordFactory()
+
+
+def _request_id_record_factory(*args, **kwargs):
+    record = _old_log_factory(*args, **kwargs)
+    if has_request_context():
+        record.request_id = getattr(g, 'request_id', '-')
+    else:
+        record.request_id = getattr(record, 'request_id', '-')
+    return record
+
+
+logging.setLogRecordFactory(_request_id_record_factory)
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s [%(request_id)s] %(name)s [%(levelname)s] %(message)s'
 )
+for _handler in logging.root.handlers:
+    _handler.addFilter(RequestIdFilter())
 
 # Shared security extensions
 csrf = CSRFProtect()
@@ -123,6 +152,20 @@ def create_app(test_config=None, start_cleanup=True):
     }, force_https=False)
 
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+    # Request correlation tracking
+    @app.before_request
+    def set_request_id():
+        req_id = request.headers.get('X-Request-ID')
+        if not req_id:
+            req_id = str(uuid.uuid4())
+        g.request_id = req_id
+
+    @app.after_request
+    def set_request_id_header(response):
+        if hasattr(g, 'request_id'):
+            response.headers['X-Request-ID'] = g.request_id
+        return response
 
     # Register HTTP route handlers
     _register_routes(app)

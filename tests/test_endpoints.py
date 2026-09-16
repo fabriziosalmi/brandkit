@@ -83,3 +83,19 @@ def test_download_zip_roundtrip(client, sample_png_bytes):
         namelist = zf.namelist()
         assert len(namelist) > 0
         assert any("website" in name for name in namelist)
+
+
+def test_request_id_generated_and_returned_in_header(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "X-Request-ID" in response.headers
+    req_id = response.headers["X-Request-ID"]
+    assert len(req_id) > 0
+
+
+def test_custom_request_id_propagated(client):
+    custom_id = "trace-req-xyz-987"
+    response = client.get("/format-info", headers={"X-Request-ID": custom_id})
+    assert response.status_code == 200
+    assert response.headers.get("X-Request-ID") == custom_id
+

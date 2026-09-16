@@ -1,6 +1,9 @@
 import json
+import logging
 import os
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_UPLOAD_MB = 16
 DEFAULT_ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
@@ -97,9 +100,9 @@ def load_config(config_path='config.json'):
                     # Replace or add non-dict values
                     config[key] = value
     except FileNotFoundError:
-        print("Warning: config.json not found. Using default configuration.")
-    except json.JSONDecodeError:
-        print("Error: config.json is not valid JSON. Using default configuration.")
+        logger.warning("Configuration file '%s' not found. Using default configuration.", config_path)
+    except json.JSONDecodeError as e:
+        logger.error("Configuration file '%s' is not valid JSON: %s. Using default configuration.", config_path, e)
     return config
 
 

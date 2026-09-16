@@ -15,16 +15,20 @@ def test_load_config_loads_valid_structure():
     assert config["formats"]["website"]["height"] == 630
 
 
-def test_load_config_missing_file_falls_back():
-    with patch("builtins.open", side_effect=FileNotFoundError):
-        config = brandkit_app.load_config()
-        assert config == brandkit_app.DEFAULT_CONFIG
+def test_load_config_missing_file_falls_back(caplog):
+    with caplog.at_level("WARNING"):
+        with patch("builtins.open", side_effect=FileNotFoundError):
+            config = brandkit_app.load_config()
+            assert config == brandkit_app.DEFAULT_CONFIG
+            assert any("not found" in record.message for record in caplog.records)
 
 
-def test_load_config_invalid_json_falls_back():
-    with patch("builtins.open", mock_open(read_data="INVALID_JSON_CONTENT")):
-        config = brandkit_app.load_config()
-        assert config == brandkit_app.DEFAULT_CONFIG
+def test_load_config_invalid_json_falls_back(caplog):
+    with caplog.at_level("ERROR"):
+        with patch("builtins.open", mock_open(read_data="INVALID_JSON_CONTENT")):
+            config = brandkit_app.load_config()
+            assert config == brandkit_app.DEFAULT_CONFIG
+            assert any("not valid JSON" in record.message for record in caplog.records)
 
 
 def test_allowed_file():

@@ -20,12 +20,12 @@ def cleanup_memory():
         try:
             process = psutil.Process(os.getpid())
             memory_usage = process.memory_info().rss / 1024 / 1024
-            print(f"Memory cleanup: collected {collected} objects, current usage: {memory_usage:.2f} MB")
+            logging.info("Memory cleanup: collected %s objects, current usage: %.2f MB", collected, memory_usage)
             return memory_usage
         except Exception as e:
-            print(f"Error getting memory info: {e}")
+            logging.error("Error getting memory info: %s", e)
     else:
-        print(f"Memory cleanup: collected {collected} objects")
+        logging.info("Memory cleanup: collected %s objects", collected)
     
     return collected
 
@@ -70,11 +70,11 @@ def cleanup_old_files(upload_folder=None, max_age_hours=24):
                         os.remove(file_path)
                         deleted_count += 1
                         total_bytes_recovered += file_size
-                        print(f"Removed old file: {filename} ({file_size / 1024:.1f} KB)")
+                        logging.info("Removed old file: %s (%.1f KB)", filename, file_size / 1024)
                     except Exception as e:
-                        print(f"Error removing file {filename}: {e}")
+                        logging.error("Error removing file %s: %s", filename, e)
     except Exception as e:
-        print(f"Error during cleanup: {e}")
+        logging.error("Error during cleanup: %s", e)
     
     # Also clean the cache directory
     cache_dir = os.path.join(upload_dir, 'cache')
@@ -92,11 +92,11 @@ def cleanup_old_files(upload_folder=None, max_age_hours=24):
                             os.remove(file_path)
                             deleted_count += 1
                             total_bytes_recovered += file_size
-                            print(f"Removed old cache file: {filename} ({file_size / 1024:.1f} KB)")
+                            logging.info("Removed old cache file: %s (%.1f KB)", filename, file_size / 1024)
                         except Exception as e:
-                            print(f"Error removing cache file {filename}: {e}")
+                            logging.error("Error removing cache file %s: %s", filename, e)
         except Exception as e:
-            print(f"Error cleaning cache: {e}")
+            logging.error("Error cleaning cache: %s", e)
     
     return deleted_count, total_bytes_recovered
 
