@@ -13,6 +13,7 @@ import traceback
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
 from werkzeug.utils import secure_filename
+from werkzeug.exceptions import HTTPException
 from PIL import Image, ImageEnhance, ImageFilter, ImageDraw, ImageFont, ImageOps
 import numpy as np
 from flask_wtf.csrf import CSRFProtect, generate_csrf
@@ -588,6 +589,8 @@ def upload_file():
             import traceback
             traceback.print_exc()
             return jsonify({'error': 'An unexpected error occurred during processing.'}), 500
+    except HTTPException:
+        raise
     except Exception as e:
         logging.error(f"Upload error: {e}")
         return jsonify({'error': f'Server error: {str(e)}'}), 500
@@ -1310,6 +1313,8 @@ def analyze_image_endpoint():
                 except Exception as e:
                     print(f"Error removing temp file: {e}")
     
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()

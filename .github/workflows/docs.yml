@@ -6,6 +6,7 @@ on:
     paths:
       - "docs/**"
       - "scripts/build-llms-full.mjs"
+      - "scripts/check-docs-dist.mjs"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/docs.yml"
@@ -14,6 +15,7 @@ on:
     paths:
       - "docs/**"
       - "scripts/build-llms-full.mjs"
+      - "scripts/check-docs-dist.mjs"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/docs.yml"
@@ -48,18 +50,7 @@ jobs:
         run: npm run docs:build
 
       - name: Check generated artefacts
-        run: |
-          set -euo pipefail
-          for f in sitemap.xml robots.txt llms.txt llms-full.txt \
-                   .well-known/security.txt favicon.svg og-image.png; do
-            test -s "docs/.vitepress/dist/$f" || { echo "missing: $f"; exit 1; }
-          done
-          # .nojekyll is intentionally empty, so existence is the only check.
-          test -e docs/.vitepress/dist/.nojekyll \
-            || { echo "missing: .nojekyll"; exit 1; }
-          grep -q 'application/ld+json' docs/.vitepress/dist/index.html \
-            || { echo "missing: schema.org JSON-LD"; exit 1; }
-          echo "all artefacts present"
+        run: node scripts/check-docs-dist.mjs
 
       - name: Upload Pages artifact
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

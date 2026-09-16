@@ -77,13 +77,17 @@ Keep pull requests focused. A formatting sweep mixed into a behaviour change is 
 
 ### CI
 
-Every push and pull request runs the [CI workflow](https://github.com/fabriziosalmi/brandkit/blob/main/.github/workflows/ci.yml): install `requirements.txt` on Python 3.11 and 3.12, then `python -c "import app"`.
+Every push and pull request runs the [CI workflow](https://github.com/fabriziosalmi/brandkit/blob/main/.github/workflows/ci.yml): install `requirements.txt` on Python 3.11 and 3.12, then `pytest -v`.
 
-That is genuinely all it does — **there is no test suite yet**. A pull request that adds one would be very welcome, and `pytest` with Flask's test client is the obvious starting point.
+Run tests locally with:
+
+```bash
+pytest -q
+```
 
 ### Manual test checklist
 
-Until there are automated tests, verify by hand:
+Beyond the automated test suite, verify manually:
 
 - [ ] the page loads and the format catalogue renders
 - [ ] an upload generates the expected files with the expected dimensions
