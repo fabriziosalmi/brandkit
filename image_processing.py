@@ -3,6 +3,7 @@ import json
 import zipfile
 import time
 import io
+import uuid
 import hashlib
 import logging
 import traceback
@@ -462,10 +463,17 @@ def save_to_cache(img, cache_key, width, height, upload_folder=None):
     os.makedirs(cache_dir, exist_ok=True)
     
     cache_path = os.path.join(cache_dir, f"{cache_key}_{width}x{height}.png")
+    tmp_cache_path = f"{cache_path}.tmp.{uuid.uuid4().hex}"
     try:
-        img.save(cache_path, "PNG")
+        img.save(tmp_cache_path, "PNG")
+        os.replace(tmp_cache_path, cache_path)
     except Exception as e:
         logging.error(f"Error saving to cache: {e}")
+        if os.path.exists(tmp_cache_path):
+            try:
+                os.remove(tmp_cache_path)
+            except OSError:
+                pass
 
 
 def get_from_cache(cache_key, width, height, upload_folder=None):

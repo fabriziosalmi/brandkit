@@ -33,6 +33,7 @@ from config_utils import (
     load_config,
     allowed_file,
     ensure_serializable,
+    validate_format_spec,
 )
 from image_processing import (
     PSUTIL_AVAILABLE,
@@ -308,14 +309,23 @@ def _register_routes(app):
             file.save(file_path)
             
             # Process image with mandatory metadata stripping
+            file_base, file_ext = os.path.splitext(file_path)
+            tmp_exif_path = f"{file_base}.tmp.{uuid.uuid4().hex}{file_ext}"
             try:
                 with Image.open(file_path) as img:
+                    orig_format = img.format
                     data = list(img.getdata())
                     img_without_exif = Image.new(img.mode, img.size)
                     img_without_exif.putdata(data)
-                    img_without_exif.save(file_path)
+                    img_without_exif.save(tmp_exif_path, format=orig_format)
+                os.replace(tmp_exif_path, file_path)
             except Exception as e:
                 logging.error(f"Error processing image: {e}")
+                if os.path.exists(tmp_exif_path):
+                    try:
+                        os.remove(tmp_exif_path)
+                    except OSError:
+                        pass
                 if os.path.exists(file_path):
                     os.remove(file_path)
                 return jsonify({'error': 'Invalid image file'}), 400

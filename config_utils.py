@@ -85,20 +85,60 @@ DEFAULT_CONFIG = {
 }
 
 
+def validate_format_spec(name, spec):
+    """Validate that a format specification has positive integer width and height."""
+    if not isinstance(spec, dict):
+        return False
+    width = spec.get("width")
+    height = spec.get("height")
+    if not isinstance(width, int) or isinstance(width, bool) or width <= 0:
+        return False
+    if not isinstance(height, int) or isinstance(height, bool) or height <= 0:
+        return False
+    return True
+
+
 def load_config(config_path='config.json'):
-    """Load configuration with proper deep merging of dictionaries"""
+    """Load configuration with proper deep merging and schema validation"""
     config = DEFAULT_CONFIG.copy()
     try:
         with open(config_path, 'r') as f:
             file_config = json.load(f)
-            # Deep merge the dictionaries
-            for key, value in file_config.items():
-                if key in config and isinstance(config[key], dict) and isinstance(value, dict):
-                    # Merge nested dictionaries
-                    config[key].update(value)
-                else:
-                    # Replace or add non-dict values
-                    config[key] = value
+            if isinstance(file_config, dict):
+                # Validate and merge 'formats'
+                if 'formats' in file_config and isinstance(file_config['formats'], dict):
+                    if 'formats' not in config:
+                        config['formats'] = {}
+                    for fmt_name, fmt_spec in file_config['formats'].items():
+                        if validate_format_spec(fmt_name, fmt_spec):
+                            config['formats'][fmt_name] = {
+                                'width': int(fmt_spec['width']),
+                                'height': int(fmt_spec['height']),
+                                'description': str(fmt_spec.get('description', ''))
+                            }
+                        else:
+                            logger.warning("Invalid format specification for '%s' in %s - skipping", fmt_name, config_path)
+
+                # Validate and merge 'format_categories'
+                if 'format_categories' in file_config and isinstance(file_config['format_categories'], dict):
+                    if 'format_categories' not in config:
+                        config['format_categories'] = {}
+                    for cat_name, items in file_config['format_categories'].items():
+                        if isinstance(items, list) and all(isinstance(i, str) for i in items):
+                            config['format_categories'][cat_name] = list(items)
+                        else:
+                            logger.warning("Invalid format_categories list for '%s' in %s - skipping", cat_name, config_path)
+
+                # Merge other top-level keys safely
+                for key, value in file_config.items():
+                    if key in ('formats', 'format_categories'):
+                        continue
+                    if key in config and isinstance(config[key], dict) and isinstance(value, dict):
+                        for sub_k, sub_v in value.items():
+                            if isinstance(sub_v, (int, float, str, bool)):
+                                config[key][sub_k] = sub_v
+                    elif isinstance(value, (dict, list, int, float, str, bool)):
+                        config[key] = value
     except FileNotFoundError:
         logger.warning("Configuration file '%s' not found. Using default configuration.", config_path)
     except json.JSONDecodeError as e:

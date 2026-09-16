@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import numpy as np
@@ -107,3 +108,44 @@ def test_cleanup_memory():
     # Should execute without throwing any exception
     res = brandkit_app.cleanup_memory()
     assert res is not None
+
+
+def test_validate_format_spec():
+    # Valid specs
+    assert brandkit_app.validate_format_spec("banner", {"width": 800, "height": 600})
+    assert brandkit_app.validate_format_spec("square", {"width": 500, "height": 500, "description": "test"})
+
+    # Invalid specs: non-dict, non-int, negative or zero dimensions, boolean
+    assert not brandkit_app.validate_format_spec("bad1", "not a dict")
+    assert not brandkit_app.validate_format_spec("bad2", {"width": -100, "height": 200})
+    assert not brandkit_app.validate_format_spec("bad3", {"width": 100, "height": 0})
+    assert not brandkit_app.validate_format_spec("bad4", {"width": "100", "height": 200})
+    assert not brandkit_app.validate_format_spec("bad5", {"width": True, "height": 200})
+    assert not brandkit_app.validate_format_spec("bad6", {"width": 100})
+
+
+def test_load_config_schema_validation_filters_corrupt_formats(tmp_path):
+    config_file = tmp_path / "custom_config.json"
+    custom_data = {
+        "formats": {
+            "valid_custom": {"width": 1920, "height": 1080, "description": "Full HD"},
+            "corrupt_negative": {"width": -500, "height": 300},
+            "corrupt_string": {"width": "bad", "height": "bad"},
+            "corrupt_missing": {"description": "no dimensions"}
+        },
+        "format_categories": {
+            "CustomCategory": ["valid_custom"],
+            "BadCategory": "not a list"
+        }
+    }
+    config_file.write_text(json.dumps(custom_data))
+
+    cfg = brandkit_app.load_config(str(config_file))
+    assert "valid_custom" in cfg["formats"]
+    assert cfg["formats"]["valid_custom"]["width"] == 1920
+    assert "corrupt_negative" not in cfg["formats"]
+    assert "corrupt_string" not in cfg["formats"]
+    assert "corrupt_missing" not in cfg["formats"]
+    assert "CustomCategory" in cfg["format_categories"]
+    assert "BadCategory" not in cfg["format_categories"]
+

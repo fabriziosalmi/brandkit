@@ -163,3 +163,26 @@ def test_generate_variations():
     assert "Original" in labels
     assert "Grayscale" in labels
     assert "B&W" in labels
+
+
+def test_save_to_cache_atomic_behavior(tmp_path):
+    img = Image.new("RGBA", (32, 32), (10, 20, 30, 255))
+    cache_key = "testcachekey123"
+    upload_dir = tmp_path / "uploads"
+    
+    brandkit_app.save_to_cache(img, cache_key, 32, 32, upload_folder=str(upload_dir))
+    
+    cache_dir = upload_dir / "cache"
+    assert cache_dir.exists()
+    final_cache_file = cache_dir / f"{cache_key}_32x32.png"
+    assert final_cache_file.exists()
+    
+    # Verify no dangling temporary files remain
+    tmp_files = list(cache_dir.glob("*.tmp.*"))
+    assert len(tmp_files) == 0
+    
+    # Verify cached image can be read
+    cached_img = brandkit_app.get_from_cache(cache_key, 32, 32, upload_folder=str(upload_dir))
+    assert cached_img is not None
+    assert cached_img.size == (32, 32)
+

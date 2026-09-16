@@ -12,11 +12,11 @@ All of BrandKit's tunable behaviour lives in one file at the repository root: **
 `config.json` does **not replace** the built-in defaults. It is merged over them, one level deep:
 
 ```python
-for key, value in file_config.items():
-    if key in config and isinstance(config[key], dict) and isinstance(value, dict):
-        config[key].update(value)     # shallow merge
-    else:
-        config[key] = value           # replace
+# Custom formats and categories are validated (positive integer dimensions)
+# and merged into default configuration:
+for fmt_name, fmt_spec in file_config.get('formats', {}).items():
+    if validate_format_spec(fmt_name, fmt_spec):
+        config['formats'][fmt_name] = fmt_spec
 ```
 
 Two consequences that surprise everyone at least once:
