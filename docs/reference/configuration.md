@@ -30,8 +30,8 @@ If you genuinely need a smaller catalogue, edit `DEFAULT_CONFIG` in `app.py`.
 
 | Situation | What happens |
 | --- | --- |
-| `config.json` missing | `Warning: config.json not found. Using default configuration.` — defaults only |
-| `config.json` is invalid JSON | `Error: config.json is not valid JSON. Using default configuration.` — **defaults only, request still succeeds** |
+| `config.json` missing | `logger.warning("Configuration file '...' not found...")` — defaults only |
+| `config.json` is invalid JSON | `logger.error("Configuration file '...' is not valid JSON...")` — **defaults only, request still succeeds** |
 | A format entry lacks `width` or `height` | that format fails at render time, others continue |
 
 The second row is the dangerous one: a broken edit does not produce an error page, it produces a catalogue that quietly reverts. Validate before you trust it:
