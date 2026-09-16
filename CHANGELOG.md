@@ -5,6 +5,26 @@ All notable changes to BrandKit will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.4] - 2026-09-16
+
+### Added
+- Comprehensive hermetic automated test suite with 48 unit, integration, and security boundary tests (`pytest`)
+- GitHub Actions CI workflow executing `pytest` across Python 3.11 and 3.12 matrices
+- Distributed tracing correlation token (`X-Request-ID`) across Flask request context, response headers, and root logger formatters
+- Application factory pattern `create_app()` with explicit lifecycle and background worker management
+- Schema validation for custom `config.json` format specifications (enforcing positive integer dimensions)
+- Atomic write-to-temporary and rename semantics (`os.replace`) for uploaded EXIF-stripped files and image cache artifacts
+
+### Fixed
+- Replaced uninstrumented `print()` calls in config loading, cleanup routines, and error paths with structured `logging`
+- Fixed file tearing risk during image upload EXIF metadata stripping
+- Fixed race condition during concurrent worker reads on partially written disk cache files
+- Resolved CI import-only smoke test findings (`BRANDK-TEST-01`, `02`, `03`)
+
+### Changed
+- Decoupled monolithic `app.py` into dedicated modules: `image_processing.py`, `config_utils.py`, and `cleanup.py`
+- Preserved 100% backward compatibility via module-level re-exports in `app.py`
+
 ## [Unreleased]
 
 ### Added

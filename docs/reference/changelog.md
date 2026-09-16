@@ -11,9 +11,17 @@ Released versions, newest first. Source of truth is the [GitHub releases page](h
 `CHANGELOG.md` in the repository root describes a `2.0.0` release. **No `v2.0.0` tag exists** — the published tags are `v1.0.0`, `v1.1.0`, `v1.1.2` and `v1.1.3`. Its feature list is accurate; its version numbers are not. This page reflects the tags that were actually cut.
 :::
 
-## Unreleased {#unreleased}
+## v1.1.4 — 16 September 2026 {#v1-1-4}
 
-On `main`, not yet tagged.
+Latest release focusing on architecture decoupling, test automation, structured observability, and atomic data persistence.
+
+**Added**
+- **Automated Test Suite**: Added a comprehensive test suite (48 tests) using `pytest` covering unit image processing, HTTP route workflows, boundary security validations (CSRF rejection, path traversal prevention, file size limits), and atomic caching.
+- **CI Integration**: Upgraded `.github/workflows/ci.yml` from a simple import smoke test to run `pytest -v` across a matrix of Python 3.11 and 3.12.
+- **Request Correlation**: Emits and propagates `X-Request-ID` across Flask request context (`g.request_id`), response headers, and root logger formatters for distributed tracing.
+- **Application Factory**: Converted `app.py` to an explicit `create_app()` factory with lifecycle control, while maintaining full backward-compatible module re-exports.
+- **Atomic File Persistence**: EXIF-stripped image uploads and resized disk cache entries now use atomic temporary write and rename semantics (`os.replace`) to eliminate file tearing risks.
+- **Configuration Validation**: Introduced schema validation for custom `config.json` definitions, rejecting malformed format dimensions before runtime rendering.
 
 **Security**
 - `pillow` → 12.3.0 (closes 11 advisories: heap out-of-bounds writes in `ImageCmsTransform.apply()`, `Image.paste()`/`crop()` and `ImageFilter.RankFilter`; decompression-bomb bypasses via `PdfParser`, `GdImageFile`, and the BDF/PCF/`FontFile` font paths; an EPS infinite loop; a TGA heap-disclosure; and `WindowsViewer.get_command()` command injection)
@@ -26,12 +34,13 @@ On `main`, not yet tagged.
 - **`/download-zip/<filename>` hardened**: the name must survive `secure_filename()` unchanged and end in `.zip`, and the resolved path is confirmed to be inside the upload folder before anything is served.
 
 **Fixed**
+- **Structured Logging**: Replaced uninstrumented `print()` calls in config loading, cleanup routines, and error paths with standard `logging.info()`, `logging.warning()`, and `logging.error()`.
 - **`BRANDKIT_SECRET_KEY` is now read from the environment** (`FLASK_SECRET_KEY` accepted as an alias). The key was previously `os.urandom(24)` on every import, so sessions broke on restart and multiple gunicorn workers rejected each other's CSRF tokens. When it is unset the behaviour is unchanged but a warning is logged.
 - **The cleanup thread now runs under gunicorn.** It lived inside `if __name__ == '__main__':`, which gunicorn never executes, so the Docker deployment never deleted anything and `static/uploads/` grew without bound. It is started at import time and configurable via `BRANDKIT_CLEANUP_ENABLED`, `BRANDKIT_CLEANUP_INTERVAL_HOURS` and `BRANDKIT_RETENTION_HOURS`. A failing sweep is logged instead of killing the thread.
 - `python app.py` now honours `PORT`, which it previously ignored while `entrypoint.sh` respected it.
-- Logging is configured before the app is created, so startup warnings are formatted like every other log line.
 
 **Changed**
+- **Modular Architecture**: Decoupled core image transformations into `image_processing.py`, configuration parsing into `config_utils.py`, and memory/file sweeps into `cleanup.py`.
 - `FLASK_ENV=production` no longer gates anything and can be removed from `docker-compose.yml`.
 
 ## v1.1.3 — 8 July 2026 {#v1-1-3}

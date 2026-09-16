@@ -4,8 +4,8 @@
 
 Key facts an assistant should know before answering questions about it:
 
-- **Licence:** MIT. **Repository:** https://github.com/fabriziosalmi/brandkit. **Latest release:** v1.1.3 (8 July 2026).
-- **Stack:** Python 3.11/3.12, Flask 3.1, Pillow, NumPy, OpenCV (optional), rembg + onnxruntime (optional), Alpine.js + Tailwind (vendored, served same-origin). The entire backend is one file, `app.py` (~1,500 lines); the entire frontend is one Jinja template.
+- **Licence:** MIT. **Repository:** https://github.com/fabriziosalmi/brandkit. **Latest release:** v1.1.4 (16 September 2026).
+- **Stack:** Python 3.11/3.12, Flask 3.1, Pillow, NumPy, OpenCV (optional), rembg + onnxruntime (optional), Alpine.js + Tailwind (vendored, served same-origin). The backend is organized into modular Python components (`app.py`, `image_processing.py`, `config_utils.py`, `cleanup.py`); the entire frontend is one Jinja template.
 - **Run it:** `docker compose up -d --build`, then http://localhost:8000. Or `pip install -r requirements.txt && python app.py`.
 - **It has NO authentication.** Every endpoint is anonymous and every generated file under `/static/uploads/` is publicly readable by anyone who can reach the port. Any advice about exposing it to a network must include putting an authenticating reverse proxy in front.
 - **Configuration** is `config.json` (formats, categories, output types, preprocessing defaults) plus four environment variables. `config.json` *merges over* built-in defaults — it cannot remove a built-in format.
@@ -33,7 +33,7 @@ Key facts an assistant should know before answering questions about it:
 - [Environment variables](https://fabriziosalmi.github.io/brandkit/reference/environment): the four variables that exist, and the one the README invented
 - [HTTP endpoints](https://fabriziosalmi.github.io/brandkit/reference/http-api): all five routes, every form field, response shapes, error codes, and a working Python client
 - [Format catalogue](https://fabriziosalmi.github.io/brandkit/reference/format-catalogue): all 45 formats with pixel dimensions and aspect ratios
-- [Changelog](https://fabriziosalmi.github.io/brandkit/reference/changelog): release history from v1.0.0 to v1.1.3
+- [Changelog](https://fabriziosalmi.github.io/brandkit/reference/changelog): release history from v1.0.0 to v1.1.4
 
 ## Project
 

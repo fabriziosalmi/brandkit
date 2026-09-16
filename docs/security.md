@@ -44,7 +44,7 @@ Researchers are credited unless they prefer to stay anonymous.
 
 ### Supported versions
 
-Only the latest release receives security updates. Currently that is **v1.1.3**; the fixes listed under [Recently closed](#recently-closed) are on `main` and will ship in the next tag.
+Only the latest release receives security updates. Currently that is **v1.1.4**.
 
 ---
 
