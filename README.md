@@ -231,7 +231,10 @@ The `config.json` file defines the available output formats, their dimensions, d
 ## File Structure
 
 ```
-app.py                     # Flask backend with AI processing
+app.py                     # Flask application factory and route handlers
+image_processing.py        # Core image transformations and asset pipelines
+cleanup.py                 # Background file cleanup and memory management
+config_utils.py            # Format configuration and utility helpers
 config.json                # Format and output configuration
 requirements.txt           # Python dependencies (includes rembg, opencv)
 Dockerfile                 # Docker build configuration
