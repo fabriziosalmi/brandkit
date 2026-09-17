@@ -10,8 +10,7 @@ const SITE_URL = HOSTNAME + BASE
 const REPO = 'https://github.com/fabriziosalmi/brandkit'
 const DESCRIPTION =
   'Self-hosted brand asset generator: upload one logo, get 45+ ready-to-ship ' +
-  'sizes for web, social, mobile and print — with AI background removal, ' +
-  'colour analysis and PNG/JPG/WebP/ICO output.'
+  'sizes for web, social, mobile and print, with AI background removal.'
 
 const ldjson = {
   '@context': 'https://schema.org',
@@ -80,7 +79,7 @@ export default defineConfig({
   metaChunk: true,
 
   markdown: {
-    // Render `- [ ]` / `- [x]` as real (disabled) checkboxes — the deployment
+    // Render `- [ ]` / `- [x]` as real (disabled) checkboxes, since the deployment
     // and contributing pages lean on them.
     config: (md) => {
       md.use(taskLists, { enabled: false, label: true })
@@ -94,18 +93,19 @@ export default defineConfig({
 
   head: [
     ['link', { rel: 'icon', href: BASE + 'favicon.svg', type: 'image/svg+xml' }],
+    ['link', { rel: 'apple-touch-icon', sizes: '180x180', href: BASE + 'apple-touch-icon.png' }],
     ['meta', { name: 'theme-color', content: '#3b82f6' }],
     ['meta', { name: 'author', content: 'Fabrizio Salmi' }],
-    ['meta', { name: 'robots', content: 'index, follow' }],
+    ['meta', { name: 'robots', content: 'index, follow, max-image-preview:large' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'BrandKit' }],
-    ['meta', { property: 'og:title', content: 'BrandKit — self-hosted brand asset generator' }],
+    ['meta', { property: 'og:title', content: 'BrandKit: self-hosted brand asset generator' }],
     ['meta', { property: 'og:description', content: DESCRIPTION }],
     ['meta', { property: 'og:url', content: SITE_URL }],
     ['meta', { property: 'og:image', content: SITE_URL + 'og-image.png' }],
     ['meta', { property: 'og:locale', content: 'en_US' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-    ['meta', { name: 'twitter:title', content: 'BrandKit — self-hosted brand asset generator' }],
+    ['meta', { name: 'twitter:title', content: 'BrandKit: self-hosted brand asset generator' }],
     ['meta', { name: 'twitter:description', content: DESCRIPTION }],
     ['meta', { name: 'twitter:image', content: SITE_URL + 'og-image.png' }],
     ['link', { rel: 'canonical', href: SITE_URL }],
