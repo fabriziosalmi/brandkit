@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import os
 import numpy as np
 
@@ -170,3 +171,42 @@ def ensure_serializable(obj):
     else:
         # Convert any other types to string representation
         return str(obj)
+
+
+def clamp_value(val, default, min_val, max_val, cast_type=float):
+    """
+    Safely cast val to cast_type (float or int) and clamp to [min_val, max_val].
+    Guards against NaN, Inf, empty, or unparseable input.
+    """
+    def _fallback():
+        try:
+            fb = cast_type(default)
+            if math.isnan(fb) or math.isinf(fb):
+                return min_val
+            return max(min_val, min(max_val, fb))
+        except (ValueError, TypeError):
+            return min_val
+
+    try:
+        if val is None or val == '':
+            return _fallback()
+        if cast_type is int:
+            num = round(float(val))
+        else:
+            num = float(val)
+        if math.isnan(num) or math.isinf(num):
+            return _fallback()
+        clamped = max(min_val, min(max_val, num))
+        return int(clamped) if cast_type is int else float(clamped)
+    except (ValueError, TypeError, OverflowError):
+        return _fallback()
+
+
+def parse_clamped_float(val, default, min_val, max_val):
+    """Parse and clamp a float parameter to [min_val, max_val]."""
+    return clamp_value(val, default, min_val, max_val, cast_type=float)
+
+
+def parse_clamped_int(val, default, min_val, max_val):
+    """Parse and clamp an integer parameter to [min_val, max_val]."""
+    return clamp_value(val, default, min_val, max_val, cast_type=int)

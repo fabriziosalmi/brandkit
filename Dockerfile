@@ -31,11 +31,22 @@ RUN pip install --upgrade pip
 RUN pip install --no-cache-dir rembg onnxruntime opencv-python-headless numpy
 
 # Install Python backend requirements
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+COPY requirements.txt requirements.lock* ./
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project code
-COPY . .
+# Create dedicated non-root user and setup runtime directories
+RUN useradd -u 1000 -m -s /bin/bash brandkit \
+    && mkdir -p /app/static/uploads/cache /home/brandkit/.u2net \
+    && chown -R brandkit:brandkit /app /home/brandkit
+
+# Copy project code with proper ownership
+COPY --chown=brandkit:brandkit . .
+
+# Set U2NET home for model downloads
+ENV U2NET_HOME=/home/brandkit/.u2net
+
+# Switch to dedicated non-root user
+USER brandkit
 
 # Expose port
 EXPOSE 8000

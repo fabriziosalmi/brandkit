@@ -103,3 +103,27 @@ def test_csrf_protection_rejects_unauthenticated_post(csrf_client, sample_png_by
     }
     response = csrf_client.post("/upload", data=data, content_type="multipart/form-data")
     assert response.status_code == 400
+
+
+def test_upload_with_out_of_bounds_parameters(client, sample_png_bytes):
+    data = {
+        "file": (io.BytesIO(sample_png_bytes), "boundary_test.png"),
+        "selected_formats": ["square_1024"],
+        "output_formats": ["png"],
+        "apply_blur": "true",
+        "blur_radius": "999999",
+        "quality": "5",
+        "auto_crop": "true",
+        "crop_padding": "-500",
+        "hue_shift": "1000",
+        "watermark_opacity": "5.5",
+        "shadow_effect": "true",
+        "shadow_blur": "-20",
+    }
+    response = client.post("/upload", data=data, content_type="multipart/form-data")
+    assert response.status_code == 200
+    res_data = response.get_json()
+    assert res_data["success"] is True
+    assert "results" in res_data
+    assert "square_1024" in res_data["results"]
+

@@ -186,3 +186,24 @@ def test_save_to_cache_atomic_behavior(tmp_path):
     assert cached_img is not None
     assert cached_img.size == (32, 32)
 
+
+def test_generate_cache_key_precomputed_hash(tmp_path):
+    test_file = tmp_path / "test_sample.png"
+    test_file.write_bytes(b"pseudo_image_binary_data_12345")
+    
+    opts = {"grayscale": True, "blur_radius": 2.0}
+    key_auto = brandkit_app.generate_cache_key(str(test_file), opts)
+    
+    # Precompute hash
+    import hashlib
+    precomputed = hashlib.md5(b"pseudo_image_binary_data_12345").hexdigest()
+    key_precomputed = brandkit_app.generate_cache_key(str(test_file), opts, file_hash=precomputed)
+    
+    assert key_auto == key_precomputed
+    assert key_auto.startswith(precomputed)
+    
+    # Different options must yield different cache key
+    key_diff_opts = brandkit_app.generate_cache_key(str(test_file), {"grayscale": False}, file_hash=precomputed)
+    assert key_diff_opts != key_auto
+
+

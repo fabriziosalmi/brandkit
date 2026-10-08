@@ -1,0 +1,45 @@
+# Git & CI/CD
+.git
+.github
+.gitignore
+
+# Virtual environments
+.venv
+venv
+ENV
+env
+
+# Python byte code and caches
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache
+.coverage
+.coverage.*
+htmlcov
+
+# Development & Test files
+tests
+audit
+
+# Documentation & Screenshots
+docs
+screenshot*.png
+
+# Environment variables & local secrets
+.env
+.env.*
+
+# Local upload artifacts (keep structure)
+static/uploads/*
+!static/uploads/.gitkeep
+!static/uploads/README.md
+
+# Editor & OS artifacts
+.DS_Store
+.idea
+.vscode
+*.swp
+*.swo

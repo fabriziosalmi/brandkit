@@ -491,9 +491,11 @@ def get_from_cache(cache_key, width, height, upload_folder=None):
     return None
 
 
-def generate_cache_key(original_path, preprocessing_options):
+def generate_cache_key(original_path, preprocessing_options, file_hash=None):
     try:
-        file_hash = hashlib.md5(open(original_path, 'rb').read()).hexdigest()
+        if file_hash is None:
+            with open(original_path, 'rb') as f:
+                file_hash = hashlib.md5(f.read()).hexdigest()
         options_hash = hashlib.md5(json.dumps(preprocessing_options, sort_keys=True).encode()).hexdigest()
         return f"{file_hash}_{options_hash[:10]}"
     except Exception as e:
@@ -522,6 +524,13 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
             prominent_color = get_prominent_color(original)
         except Exception:
             prominent_color = [200, 200, 200]
+
+        source_file_hash = None
+        try:
+            with open(original_path, 'rb') as f:
+                source_file_hash = hashlib.md5(f.read()).hexdigest()
+        except Exception as e:
+            logging.warning(f"Could not compute source file hash upfront: {e}")
         
         if variations_mode:
             variations_results = {}
@@ -536,13 +545,14 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
                     
                     variation_img = preprocess_image(original.copy(), combined_options)
                     variation_data = {}
+                    variation_cache_key = generate_cache_key(original_path, combined_options, file_hash=source_file_hash)
                     
                     for format_name, format_config in formats_to_generate.items():
                         try:
                             dimensions = (format_config['width'], format_config['height'])
                             img_copy = variation_img.copy()
                             
-                            cache_key = generate_cache_key(original_path, preprocessing_options)
+                            cache_key = variation_cache_key
                             cached_img = get_from_cache(cache_key, dimensions[0], dimensions[1], upload_folder=upload_dir)
                             
                             if cached_img:
@@ -634,6 +644,7 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
                 except Exception as e:
                     logging.error(f"Error creating favicon: {e}")
                     
+            cache_key = generate_cache_key(original_path, preprocessing_options, file_hash=source_file_hash)
             for format_name, format_config in formats_to_generate.items():
                 try:
                     if format_name == 'favicon' and 'favicon_ico' in results:
@@ -642,7 +653,6 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
                     dimensions = (format_config['width'], format_config['height'])
                     img_copy = processed_image.copy()
                     
-                    cache_key = generate_cache_key(original_path, preprocessing_options)
                     cached_img = get_from_cache(cache_key, dimensions[0], dimensions[1], upload_folder=upload_dir)
                     
                     if cached_img:
@@ -673,7 +683,6 @@ def generate_formats(original_path, filename_without_ext, selected_formats, outp
                                     new_img.paste(img_copy, paste_pos)
                             else:
                                 new_img = Image.new("RGBA", dimensions, (0, 0, 0, 0))
-                                paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
                                 paste_pos = ((dimensions[0] - img_copy.width) // 2, (dimensions[1] - img_copy.height) // 2)
                                 new_img.paste(img_copy, paste_pos)
                                 

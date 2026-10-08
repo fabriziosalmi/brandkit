@@ -34,6 +34,8 @@ from config_utils import (
     allowed_file,
     ensure_serializable,
     validate_format_spec,
+    parse_clamped_float,
+    parse_clamped_int,
 )
 from image_processing import (
     PSUTIL_AVAILABLE,
@@ -313,10 +315,9 @@ def _register_routes(app):
             tmp_exif_path = f"{file_base}.tmp.{uuid.uuid4().hex}{file_ext}"
             try:
                 with Image.open(file_path) as img:
-                    orig_format = img.format
-                    data = list(img.getdata())
+                    orig_format = img.format or 'PNG'
                     img_without_exif = Image.new(img.mode, img.size)
-                    img_without_exif.putdata(data)
+                    img_without_exif.paste(img)
                     img_without_exif.save(tmp_exif_path, format=orig_format)
                 os.replace(tmp_exif_path, file_path)
             except Exception as e:
@@ -350,37 +351,40 @@ def _register_routes(app):
                     'grayscale': request.form.get('grayscale') == 'true',
                     'bw': request.form.get('bw') == 'true',
                     'invert': request.form.get('invert') == 'true',
-                    'hue_shift': int(float(request.form.get('hue_shift', 0))),
-                    'temperature': int(float(request.form.get('temperature', 0))),
+                    'hue_shift': parse_clamped_int(request.form.get('hue_shift'), 0, -180, 180),
+                    'temperature': parse_clamped_int(request.form.get('temperature'), 0, -100, 100),
                     'enhance_contrast': request.form.get('enhance_contrast') == 'true',
                     'apply_blur': request.form.get('apply_blur') == 'true',
-                    'blur_radius': float(request.form.get('blur_radius', config.get('preprocessing_options', {}).get('blur_radius', 2.0))),
+                    'blur_radius': parse_clamped_float(request.form.get('blur_radius'), config.get('preprocessing_options', {}).get('blur_radius', 2.0), 0.1, 50.0),
                     'add_watermark': request.form.get('add_watermark') == 'true',
                     'watermark_text': request.form.get('watermark_text', config.get('preprocessing_options', {}).get('watermark_text', '© BrandKit')),
-                    'watermark_opacity': float(request.form.get('watermark_opacity', config.get('preprocessing_options', {}).get('watermark_opacity', 0.3))),
+                    'watermark_opacity': parse_clamped_float(request.form.get('watermark_opacity'), config.get('preprocessing_options', {}).get('watermark_opacity', 0.3), 0.0, 1.0),
                     'vignette': request.form.get('vignette') == 'true',
-                    'vignette_strength': float(request.form.get('vignette_strength', config.get('preprocessing_options', {}).get('vignette_strength', 0.5))),
-                    'saturation': float(request.form.get('saturation', config.get('preprocessing_options', {}).get('saturation', 1.0))),
-                    'brightness': float(request.form.get('brightness', config.get('preprocessing_options', {}).get('brightness', 1.0))),
+                    'vignette_strength': parse_clamped_float(request.form.get('vignette_strength'), config.get('preprocessing_options', {}).get('vignette_strength', 0.5), 0.0, 1.0),
+                    'saturation': parse_clamped_float(request.form.get('saturation'), config.get('preprocessing_options', {}).get('saturation', 1.0), 0.0, 5.0),
+                    'brightness': parse_clamped_float(request.form.get('brightness'), config.get('preprocessing_options', {}).get('brightness', 1.0), 0.0, 5.0),
                     'sharpen': request.form.get('sharpen') == 'true',
-                    'sharpen_radius': float(request.form.get('sharpen_radius', config.get('preprocessing_options', {}).get('sharpen_radius', 1.0))),
+                    'sharpen_radius': parse_clamped_float(request.form.get('sharpen_radius'), config.get('preprocessing_options', {}).get('sharpen_radius', 1.0), 0.1, 20.0),
                     'remove_background': request.form.get('remove_background') == 'true',
                     'background_removal_method': request.form.get('background_removal_method', 'auto'),
                     'background_color': request.form.get('background_color', 'transparent'),
                     'edge_smooth': request.form.get('edge_smooth') == 'true',
-                    'smooth_radius': float(request.form.get('smooth_radius', 2.0)),
+                    'smooth_radius': parse_clamped_float(request.form.get('smooth_radius'), 2.0, 0.1, 20.0),
                     'noise_reduction': request.form.get('noise_reduction') == 'true',
-                    'noise_strength': int(request.form.get('noise_strength', 1)),
+                    'noise_strength': parse_clamped_int(request.form.get('noise_strength'), 1, 1, 10),
                     'auto_crop': request.form.get('auto_crop') == 'true',
-                    'crop_padding': int(request.form.get('crop_padding', 10)),
+                    'crop_padding': parse_clamped_int(request.form.get('crop_padding'), 10, 0, 500),
                     'shadow_effect': request.form.get('shadow_effect') == 'true',
-                    'shadow_opacity': float(request.form.get('shadow_opacity', 0.3)),
-                    'shadow_blur': int(request.form.get('shadow_blur', 4)),
-                    'shadow_offset': (int(request.form.get('shadow_offset_x', 5)), int(request.form.get('shadow_offset_y', 5))),
+                    'shadow_opacity': parse_clamped_float(request.form.get('shadow_opacity'), 0.3, 0.0, 1.0),
+                    'shadow_blur': parse_clamped_int(request.form.get('shadow_blur'), 4, 0, 50),
+                    'shadow_offset': (
+                        parse_clamped_int(request.form.get('shadow_offset_x'), 5, -100, 100),
+                        parse_clamped_int(request.form.get('shadow_offset_y'), 5, -100, 100)
+                    ),
                     'enhance_quality': request.form.get('enhance_quality') == 'true',
                 }
                 
-                quality = int(request.form.get('quality', 95))
+                quality = parse_clamped_int(request.form.get('quality'), 95, 10, 100)
                 strip_metadata = request.form.get('strip_metadata') == 'true'
                 original_path = file_path
                     

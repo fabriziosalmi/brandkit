@@ -149,3 +149,41 @@ def test_load_config_schema_validation_filters_corrupt_formats(tmp_path):
     assert "CustomCategory" in cfg["format_categories"]
     assert "BadCategory" not in cfg["format_categories"]
 
+
+def test_clamped_parsing_helpers():
+    from config_utils import clamp_value, parse_clamped_float, parse_clamped_int
+
+    # Float parsing within bounds
+    assert parse_clamped_float("15.5", 2.0, 0.1, 50.0) == 15.5
+    # Float below min -> clamped to min
+    assert parse_clamped_float("-10.0", 2.0, 0.1, 50.0) == 0.1
+    # Float above max -> clamped to max
+    assert parse_clamped_float("150.0", 2.0, 0.1, 50.0) == 50.0
+    # Float invalid string -> fallback to default
+    assert parse_clamped_float("not-a-number", 2.5, 0.1, 50.0) == 2.5
+    # Float None or empty -> fallback to default
+    assert parse_clamped_float(None, 2.5, 0.1, 50.0) == 2.5
+    assert parse_clamped_float("", 2.5, 0.1, 50.0) == 2.5
+    # Float NaN / Inf -> fallback to default
+    assert parse_clamped_float("nan", 2.5, 0.1, 50.0) == 2.5
+    assert parse_clamped_float("inf", 2.5, 0.1, 50.0) == 2.5
+    assert parse_clamped_float("-inf", 2.5, 0.1, 50.0) == 2.5
+
+    # Int parsing within bounds
+    assert parse_clamped_int("10", 0, -180, 180) == 10
+    # Int below min -> clamped to min
+    assert parse_clamped_int("-500", 0, -180, 180) == -180
+    # Int above max -> clamped to max
+    assert parse_clamped_int("500", 0, -180, 180) == 180
+    # Float string rounded for int
+    assert parse_clamped_int("12.6", 0, 0, 100) == 13
+    assert parse_clamped_int("12.2", 0, 0, 100) == 12
+    # Int invalid / None / empty
+    assert parse_clamped_int("invalid", 4, 0, 50) == 4
+    assert parse_clamped_int(None, 4, 0, 50) == 4
+    assert parse_clamped_int("", 4, 0, 50) == 4
+    # Int NaN / Inf
+    assert parse_clamped_int("nan", 4, 0, 50) == 4
+    assert parse_clamped_int("inf", 4, 0, 50) == 4
+
+

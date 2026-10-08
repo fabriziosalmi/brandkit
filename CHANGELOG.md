@@ -5,7 +5,24 @@ All notable changes to BrandKit will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5] - 2026-10-08
+
+### Performance
+- Hoisted `generate_cache_key()` calculation outside the `formats_to_generate` iteration loop in `image_processing.py`, eliminating 45 redundant disk reads and MD5 hashing operations per request
+- Precomputed source image file hash upfront and passed into variation/format caching logic
+- Optimized metadata stripping in `app.py` via native `Image.new()` and `paste()` to avoid huge in-memory pixel list allocations and future deprecation warnings
+
+### Security & Hygiene
+- Added dedicated non-root `USER brandkit` (UID 1000) and ownership configuration in `Dockerfile`
+- Added comprehensive root `.dockerignore` excluding tests, virtual environments, Git metadata, documentation, and development artifacts from image builds
+- Enforced strict input range boundary clamping (`parse_clamped_float`, `parse_clamped_int`) on all numeric filter inputs (`blur_radius`, `crop_padding`, `quality`, `saturation`, `brightness`, etc.) with NaN/Inf protection
+
+### Supply Chain
+- Adopted bit-for-bit reproducible, universal hash-pinned lockfile `requirements.lock` generated via `uv`
+- Pinned exact versions for test dependencies `pytest==9.1.1` and `pytest-cov==7.1.0` in `requirements.txt`
+
 ## [1.1.4] - 2026-09-16
+
 
 ### Added
 - Comprehensive hermetic automated test suite with 48 unit, integration, and security boundary tests (`pytest`)
