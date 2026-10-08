@@ -11,6 +11,24 @@ Released versions, ordered from newest to oldest. Source of truth is the [GitHub
 The root `CHANGELOG.md` outlines planned feature revisions ahead of version tags. Canonical published releases are documented below.
 :::
 
+## v1.1.5 (8 October 2026) {#v1-1-5}
+
+Performance optimizations, non-root container hardening, boundary input validation, and supply-chain lockfile pinning.
+
+**Performance**
+- **Deduplicated Cache Key Hashes**: Hoisted MD5 cache key generation out of the format loop in `image_processing.py`, eliminating redundant disk reads and hash calculations across 45 target formats.
+- **Precomputed Source Hashing**: Cached upfront source image hash used across variation generation and format export.
+- **Optimized Metadata Stripping**: Refactored EXIF stripping in `app.py` to use `Image.new()` and `paste()` avoiding full-frame pixel list allocations.
+
+**Security & Hardening**
+- **Non-root Container Execution**: Hardened `Dockerfile` with dedicated non-root user `brandkit` (UID 1000) and proper permissions on `/app/static/uploads`.
+- **Docker Build Hygiene**: Added `.dockerignore` blocking tests, virtualenvs, Git metadata, and documentation artifacts from container builds.
+- **Strict Boundary Clamping**: Enforced safe numeric range clamping with NaN/Inf rejection on all filter parameters (`parse_clamped_float`, `parse_clamped_int`).
+
+**Supply Chain**
+- **Universal Hash-Pinned Lockfile**: Introduced `requirements.lock` with SHA-256 hashes generated via `uv` for reproducible builds.
+- **Test Dependency Pinning**: Pinned explicit versions for `pytest==9.1.1` and `pytest-cov==7.1.0`.
+
 ## v1.1.4 (16 September 2026) {#v1-1-4}
 
 Architecture decoupling, automated test coverage, structured observability, and atomic data persistence.

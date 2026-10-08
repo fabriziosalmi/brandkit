@@ -43,7 +43,7 @@ Researchers are credited upon publication unless anonymity is requested.
 
 ### Supported versions
 
-Security patches are published exclusively against the latest release branch (currently **v1.1.4**).
+Security patches are published exclusively against the latest release branch (currently **v1.1.5**).
 
 ---
 
