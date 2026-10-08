@@ -5,38 +5,38 @@ description: How to choose which formats and which file types to generate.
 
 # Output formats
 
-BrandKit ships 45 named canvas sizes grouped into ten categories. The full table with pixel dimensions is the [format catalogue](/reference/format-catalogue) — this page is about choosing.
+BrandKit ships 45 named canvas sizes grouped into ten categories. The full table with pixel dimensions is the [format catalogue](/reference/format-catalogue); this page focuses on format selection.
 
 ## Two independent choices
 
-**Formats** are canvas sizes: `website` is 1200×630, `favicon` is 16×16. **Output types** are file encodings: PNG, JPG, WebP, ICO. Every selected format is rendered into every selected type, so five formats × two types is ten files.
+**Formats** are canvas sizes: `website` is 1200×630, `favicon` is 16×16. **Output types** are file encodings: PNG, JPG, WebP, ICO. Every selected format is rendered into every selected type, so five formats × two types produces ten files.
 
 ## Starter selections
 
-Rather than ticking boxes at random, start from one of these.
+Rather than selecting items arbitrarily, start from one of these presets.
 
 ### Shipping a website
 
 ```
 website               1200×630   Open Graph / Twitter card
-favicon               16×16      → produces a multi-size .ico
+favicon               16×16      Multi-size .ico bundle
 webapp                512×512    PWA manifest icon
 hero_desktop          1280×720
 hero_mobile           360×200
 ```
-Output types: **PNG + ICO**. Add WebP if you serve modern formats.
+Output types: **PNG + ICO**. Add WebP when serving modern web formats.
 
 ### Social launch
 
 ```
-social                1080×1080  square post
-instagram             1080×1350  portrait post
-twitter               1500×500   header banner
+social                1080×1080  Square post
+instagram             1080×1350  Portrait post
+twitter               1500×500   Header banner
 linkedin              1200×627
 facebook              1200×630
 social_icon_large     48×48
 ```
-Output types: **PNG** (JPG if the source is photographic and you care about bytes).
+Output types: **PNG** (or JPG for photographic sources where file size is critical).
 
 ### App icon set
 
@@ -61,34 +61,34 @@ business_card         1050×600
 document_header       1200×200
 presentation_slide    1920×1080
 ```
-Output types: **PNG**. These are the largest canvases in the catalogue — expect the slowest renders.
+Output types: **PNG**. These are the largest canvases in the catalogue; rendering takes longer.
 
 ## Choosing a file type
 
-| | PNG | JPG | WebP | ICO |
+| Attribute | PNG | JPG | WebP | ICO |
 | --- | --- | --- | --- | --- |
-| Transparency | ✅ | ❌ | ✅ | ✅ |
-| Lossy | no | yes | yes | no |
-| Honours the quality slider | ❌ | ✅ | ✅ | ❌ |
-| Typical size, 1200×630 logo | large | small | smallest | — |
-| Universal browser support | ✅ | ✅ | ✅ (since 2020) | ✅ |
+| Transparency | Yes | No | Yes | Yes |
+| Lossy | No | Yes | Yes | No |
+| Honors quality slider | No | Yes | Yes | No |
+| Typical size, 1200×630 logo | Large | Small | Smallest | N/A |
+| Browser support | Universal | Universal | Modern (since 2020) | Universal |
 
-Rules of thumb:
+Recommendations:
 
-- **Anything with an alpha channel → PNG or WebP.** Selecting JPG flattens it, usually onto white.
-- **Photographic sources at large sizes → JPG or WebP** at quality 85–95. PNG will be several times larger for no visible gain.
-- **Favicons → ICO**, and remember it is only generated if the `favicon` format is also ticked.
-- **When in doubt → PNG.** It is lossless and it is what the rest of the toolchain expects.
+- **Alpha channel preservation:** PNG or WebP. Selecting JPG flattens transparency onto a solid background.
+- **Photographic sources at large sizes:** JPG or WebP at quality 85-95. PNG results in significantly larger files with minimal perceptible gain.
+- **Favicons:** ICO. Note that `.ico` generation requires the `favicon` format to be selected.
+- **Default choice:** PNG is lossless and standard across production toolchains.
 
-## Aspect ratio is the thing that bites
+## Aspect ratio considerations
 
-BrandKit fits your source into each canvas; it does not crop intelligently to a subject. A tall logo dropped into `twitter` (3:1) will end up small and centred with a lot of empty space on either side.
+BrandKit scales your source into each canvas; it does not perform automated subject cropping. A tall logo placed into `twitter` (3:1) will be centered with blank padding on both flanks.
 
-If your kit spans wildly different ratios — 3:1 banners and 9:16 mobile backgrounds in the same run — expect to want two source images rather than one. That is a limitation of any automated resize, not of this tool specifically.
+If your target outputs span divergent aspect ratios (such as 3:1 banners and 9:16 mobile backgrounds in the same run), prepare dedicated source images for optimal composition.
 
-## Adding your own
+## Adding custom formats
 
-Formats are data, not code. Add a key to `formats` in `config.json`, list it under a category, restart:
+Formats are configuration data, not code. Add an entry to `formats` in `config.json`, assign it to a category, and restart:
 
 ```json
 {
@@ -101,4 +101,4 @@ Formats are data, not code. Add a key to `formats` in `config.json`, list it und
 }
 ```
 
-Details and gotchas — including the fact that `config.json` **merges over** the built-in defaults rather than replacing them — are in [Configuration](/reference/configuration).
+Details and operational notes, including how `config.json` merges over built-in defaults, are covered in [Configuration](/reference/configuration).

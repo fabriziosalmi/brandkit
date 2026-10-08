@@ -1,76 +1,72 @@
 ---
 title: Performance & caching
-description: How BrandKit caches renders, manages memory and cleans up old files — and what you have to do yourself.
+description: How BrandKit caches renders, manages memory, and handles file retention.
 ---
 
 # Performance & caching
 
 ## The render cache
 
-Resized intermediates are cached on disk under `static/uploads/cache/`, keyed by a hash of **the source file's bytes plus the preprocessing options**:
+Resized intermediates are cached on disk under `static/uploads/cache/`, keyed by a hash of the source file bytes plus the preprocessing parameters:
 
 ```python
 file_hash = hashlib.md5(open(original_path, 'rb').read()).hexdigest()
 ```
 
-combined with a stable serialisation of the options dictionary, plus the target width and height.
+combined with a deterministic serialization of the options dictionary, target width, and target height.
 
-The practical consequence: **re-generating the same image with the same preprocessing settings is nearly free**, even across different format selections, because each target size is cached independently. Change any preprocessing option — even one you cannot see in the output — and the whole cache misses.
+Consequently, re-generating the same image with identical preprocessing settings is nearly instantaneous, even across varying format selections, because individual target dimensions are cached independently. Changing any preprocessing option invalidates cache hits for that configuration.
 
-::: info MD5 here is not a security decision
-The hash is a cache key, not a signature. Collisions would mean a wrong thumbnail, not a vulnerability. It is still worth swapping for BLAKE2b at some point, purely to keep static analysers quiet.
+::: info Cache key hashing
+The MD5 hash operates strictly as a content cache key rather than a cryptographic signature. A collision would result in an incorrect thumbnail rather than an execution vulnerability.
 :::
 
-Reading the whole file into memory to hash it means peak memory scales with your upload limit. At the 16 MB default this is irrelevant; if you raise `BRANDKIT_MAX_UPLOAD_MB` to something large, remember that each concurrent request holds a full copy.
+Hashing the file requires reading its payload into memory, meaning peak memory correlates with your upload ceiling. Under the 16 MB default, this overhead is minimal; higher values for `BRANDKIT_MAX_UPLOAD_MB` scale concurrent memory consumption accordingly.
 
 ## In-memory caching
 
-Flask-Caching is configured with `SimpleCache` — a per-process dictionary. It is not shared between gunicorn workers and it is lost on restart. That is fine for what it holds (small, recomputable values) but it means cache hit rates get worse, not better, as you add workers.
+Flask-Caching is configured with `SimpleCache` (a per-process memory dictionary). It is not shared between Gunicorn workers and resets upon container restart. This design is suitable for volatile recomputable values.
 
 ## Memory management
 
-After any generation involving **more than five formats** or with **variations mode** on, BrandKit forces a garbage collection pass and, when `psutil` is installed, logs process memory. `psutil` is in `requirements.txt`, so this is normally active; without it the app prints:
+After batch generation involving more than five formats or when variations mode is active, BrandKit triggers explicit garbage collection. When `psutil` is present, it records process memory diagnostics. `psutil` is specified in `requirements.txt`; if omitted, the service falls back gracefully:
 
 ```
 Warning: psutil not available. Memory monitoring disabled.
 ```
 
-and still runs.
+### High-memory operations
 
-### What actually eats memory
-
-| Operation | Cost |
+| Operation | Memory profile |
 | --- | --- |
-| ONNX Runtime background removal | the largest single spike — hundreds of MB on a big image |
-| Variations mode | ten full preprocessing passes held alongside each other |
-| `print_a4` (2480×3508) and `square_large` (2048×2048) | ~35 MB per RGBA buffer, before intermediates |
-| The EXIF-stripping re-encode on upload | `list(img.getdata())` materialises every pixel as a Python tuple — briefly very expensive on large images |
+| ONNX Runtime background removal | Primary memory consumer: several hundred MB on large sources |
+| Variations mode | Computes multiple full preprocessing pipelines concurrently |
+| `print_a4` (2480×3508) and `square_large` (2048×2048) | ~35 MB per uncompressed RGBA pixel buffer before encoding |
+| EXIF metadata stripping | Materializes image pixel data through Pillow buffers |
 
-That last one is worth knowing about: the upload path builds a Python list of every pixel to strip metadata. For a 4000×4000 image that is 16 million tuples. It works, but it is the reason a large upload feels slow before anything visible happens.
+### Optimization recommendations
 
-### Keeping it in bounds
-
-- Cap the container: `deploy.resources.limits.memory: 4G`
-- Lower `BRANDKIT_MAX_UPLOAD_MB` from 16 to something matched to your actual sources
-- Keep the gunicorn worker count low — each worker holds its own ONNX session, so memory scales linearly with workers, not with traffic
-- Do not use variations mode on the print formats
+- Configure container limits: `deploy.resources.limits.memory: 4G`
+- Set `BRANDKIT_MAX_UPLOAD_MB` to match operational requirements
+- Maintain a conservative Gunicorn worker count: each worker initializes its own ONNX session
+- Avoid enabling variations mode on high-DPI print canvases simultaneously
 
 ## File cleanup
 
-A daemon thread sweeps `static/uploads/` and `static/uploads/cache/`, deleting anything past the retention window and skipping `README.md`. It logs how many files it removed and how much space it recovered.
+A background worker thread inspects `static/uploads/` and `static/uploads/cache/`, removing assets that exceed the retention duration while protecting `README.md`. It reports file counts and reclaimed disk space to stdout.
 
-It is started **at import time**, so it runs under gunicorn — the server the Docker image actually uses — as well as under `python app.py`.
+The worker thread starts at application import time, running under Gunicorn as well as the Flask development server.
 
-| Variable | Default | Meaning |
+| Environment variable | Default | Description |
 | --- | --- | --- |
-| `BRANDKIT_CLEANUP_ENABLED` | `true` | set to `false` to turn the thread off entirely |
-| `BRANDKIT_CLEANUP_INTERVAL_HOURS` | `1` | how often it sweeps |
-| `BRANDKIT_RETENTION_HOURS` | `24` | how old a file must be to be deleted |
+| `BRANDKIT_CLEANUP_ENABLED` | `true` | Set to `false` to disable the internal cleanup thread |
+| `BRANDKIT_CLEANUP_INTERVAL_HOURS` | `1` | Interval between cleanup passes |
+| `BRANDKIT_RETENTION_HOURS` | `24` | Retention lifespan before file deletion |
 
-Both interval and retention accept fractional hours, so `0.25` is fifteen minutes. A sweep that throws is logged and the thread survives to try again on the next tick.
+Interval and retention values support decimal fractions (e.g. `0.25` equals fifteen minutes). Cleanup exceptions are logged without terminating the worker loop.
 
-::: tip Shorten the retention
-24 hours is a long time for files that anyone who can reach the instance can fetch. If people use BrandKit interactively and download immediately, an hour is a much better privacy posture:
+::: tip Shorten retention for shared instances
+Default 24-hour retention maintains assets on disk where they remain accessible by filename. For shared or network-exposed setups where users download archives immediately, configure shorter retention:
 
 ```bash
 BRANDKIT_RETENTION_HOURS=1
@@ -80,22 +76,22 @@ BRANDKIT_CLEANUP_INTERVAL_HOURS=0.25
 See [Privacy](/privacy#retention).
 :::
 
-### Running the sweep by hand
+### Manual cleanup execution
 
 ```bash
 docker compose exec brandkit python -c "import app; print(app.cleanup_old_files(max_age_hours=1))"
 ```
 
-### Handing cleanup to the host instead
+### External host cron cleanup
 
-If you would rather a cron job owned it — for example because you run several workers and want exactly one process deleting — disable the thread and sweep the bind mount:
+To delegate disk cleanup to a system cron job (for instance, when running multi-worker Gunicorn configurations), disable the internal thread and target the bind mount:
 
 ```bash
 BRANDKIT_CLEANUP_ENABLED=false
 ```
 
 ```bash
-# every hour, delete upload artefacts older than 24h
+# Sweep uploads older than 24 hours every hour
 0 * * * * find /srv/brandkit/static/uploads -type f -mmin +1440 ! -name README.md -delete
 ```
 
@@ -106,14 +102,14 @@ BRANDKIT_CLEANUP_ENABLED=false
 | Global default | 200 per day, 50 per hour |
 | `POST /upload` | 5 per minute |
 
-Storage is `memory://`, so limits are per-process and reset on restart — and, again, are not shared across gunicorn workers. Exceeding a limit returns `429`.
+Rate limits use in-memory counters per worker process. Requests exceeding limits return HTTP 429.
 
-Behind a reverse proxy these limits key on the proxy's IP unless you configure `ProxyFix`; see the warning in [Deployment](/guide/deployment#nginx).
+Behind a reverse proxy, limits evaluate the proxy's IP unless `ProxyFix` is active; consult [Deployment](/guide/deployment#nginx).
 
-## Making generation faster
+## Execution speed recommendations
 
-1. **Select fewer formats.** Leaving the selection empty renders all 45.
-2. **Select fewer output types.** Each type is a separate encode of every format.
-3. **Skip background removal** when the source already has an alpha channel.
-4. **Reuse the same preprocessing settings** across runs so the disk cache hits.
-5. **Start from a reasonably sized source.** A 8000×8000 master gives you nothing that a 2048×2048 one does not, and costs you every intermediate.
+1. **Target necessary formats only:** Generating all 45 canvases requires proportional CPU cycles.
+2. **Constrain output encodings:** Each format is separately encoded for every active file type.
+3. **Bypass background removal:** Omit neural segmentation when sources already provide clean alpha channels.
+4. **Leverage cache consistency:** Retaining preprocessing options allows cached target dimensions to be served immediately.
+5. **Ingest appropriate source resolutions:** A 2048×2048 master provides sufficient detail for all digital canvases without the memory overhead of extreme source sizes.

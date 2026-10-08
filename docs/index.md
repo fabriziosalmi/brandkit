@@ -5,8 +5,8 @@ titleTemplate: BrandKit
 
 hero:
   name: BrandKit
-  text: One logo in, a whole brand kit out.
-  tagline: A self-hosted Flask app that turns a single image into 45+ production-ready sizes for web, social, mobile and print — with AI background removal, colour analysis and PNG/JPG/WebP/ICO output. No accounts, no uploads to anyone else's server.
+  text: Asset generation engine
+  tagline: A self-hosted Flask application that transforms a single image into 45+ production-ready sizes for web, social, mobile, and print, featuring background removal, color analysis, and multi-format encoding (PNG, JPG, WebP, ICO). Self-contained with no external data transmission.
   image:
     src: /favicon.svg
     alt: BrandKit
@@ -15,72 +15,65 @@ hero:
       text: Get started
       link: /guide/getting-started
     - theme: alt
-      text: What is BrandKit?
+      text: Architecture
       link: /guide/
     - theme: alt
-      text: View on GitHub
+      text: GitHub
       link: https://github.com/fabriziosalmi/brandkit
 
 features:
-  - icon: 📐
-    title: 45+ formats, one upload
-    details: Open Graph cards, favicons, app icons, Instagram posts, hero banners, ebook covers, A4 print. Pick a category or search the catalogue — every size is defined in a JSON file you can edit.
+  - title: 45+ formats, one upload
+    details: Open Graph cards, favicons, application icons, Instagram posts, hero banners, document covers, and print sizes. Filter by category or search the catalog. Every dimension is declared in config.json.
     link: /reference/format-catalogue
-    linkText: Browse the catalogue
-  - icon: ✂️
-    title: AI background removal
-    details: rembg strips the background locally with u2net, then you composite onto a solid colour, a gradient, or keep transparency. Edge smoothing, auto-crop and drop shadows included.
+    linkText: Browse catalog
+  - title: Background removal
+    details: Local segmentation via rembg with u2net models. Composite onto solid colors, dominant palette fills, or preserve alpha transparency. Edge smoothing and auto-crop included.
     link: /guide/background-removal
-    linkText: How it works
-  - icon: 🎨
-    title: Real image preprocessing
-    details: Hue shift, colour temperature, saturation, contrast, sharpening, vignette, watermarking, blur and noise reduction — applied once, before every format is rendered.
+    linkText: Implementation details
+  - title: Image preprocessing
+    details: Adjust hue, color temperature, saturation, contrast, sharpness, vignette, watermark, blur, and noise reduction prior to format rendering.
     link: /guide/preprocessing
-    linkText: All the knobs
-  - icon: 🔒
-    title: Runs on your own box
-    details: CSRF protection, rate limiting, a strict Content Security Policy, mandatory EXIF stripping and no third-party CDN calls. Your images never leave the container.
+    linkText: Preprocessing options
+  - title: Self-hosted security
+    details: CSRF protection, rate limiting, strict Content Security Policy, mandatory EXIF stripping, and vendored assets. No third-party network telemetry.
     link: /security
     linkText: Security posture
-  - icon: 🐳
-    title: Docker in one command
-    details: docker compose up -d and you have it on :8000. Or pip install -r requirements.txt and python app.py for local hacking.
+  - title: Single-command deployment
+    details: Deploy with docker compose up -d on port 8000, or run directly via Python 3.11+ virtual environment.
     link: /guide/docker
-    linkText: Run it
-  - icon: ⚡
-    title: Cached and memory-aware
-    details: Processed images are cached by content hash, old uploads are swept on a schedule, and psutil-backed memory checks keep large batches from blowing up the process.
+    linkText: Deployment guide
+  - title: Content caching & memory awareness
+    details: Operations are cached by content hash, outdated uploads are purged via background worker, and psutil monitoring guards process memory limits.
     link: /guide/performance
-    linkText: Performance notes
+    linkText: Performance guide
 ---
 
 <div class="vp-doc" style="max-width: 1152px; margin: 0 auto; padding: 0 24px 64px;">
 
-## 60 seconds to your first brand kit
+## Quick Start
 
 ```bash
 git clone https://github.com/fabriziosalmi/brandkit.git
 cd brandkit
 docker compose up -d --build
-# open http://localhost:8000
+# Access http://localhost:8000
 ```
 
-Drop in a logo, tick the formats you want, hit **Generate**, download the ZIP. That is the whole product.
+Upload a master asset, select target formats, and click **Generate Brand Kit** to download the consolidated ZIP archive.
 
-## What you get back
+## Output Specifications
 
-A single archive containing every selected format in every selected output type, named predictably (`<yourlogo>_website.png`, `<yourlogo>_favicon.ico`, …), plus a preview grid in the browser so you can check each crop before you download.
+A structured archive containing every configured format in each selected encoding format (`<name>_website.png`, `<name>_favicon.ico`, etc.), accompanied by a real-time inspection grid in the browser.
 
-## Where to go next
+## Documentation Navigation
 
-| If you want to… | Read |
-| --- | --- |
-| Get it running | [Getting started](/guide/getting-started) · [Docker](/guide/docker) |
-| Understand the UI | [The generation workflow](/guide/usage) |
-| Add or resize a format | [Configuration](/reference/configuration) |
-| Call it from a script | [HTTP endpoints](/reference/http-api) |
-| Put it on the internet | [Deployment](/guide/deployment) |
-| Know what happens to your images | [Privacy](/privacy) |
-| Report a vulnerability | [Security policy](/security) |
+| Objective | Reference |
+| :--- | :--- |
+| Initial Setup | [Getting started](/guide/getting-started) · [Docker](/guide/docker) |
+| Interface & Workflow | [Generation workflow](/guide/usage) · [Keyboard shortcuts](/guide/keyboard-shortcuts) |
+| Format Specifications | [Configuration](/reference/configuration) · [Catalog](/reference/format-catalogue) |
+| Automation & API | [HTTP endpoints](/reference/http-api) |
+| Production Hosting | [Deployment](/guide/deployment) · [Environment variables](/reference/environment) |
+| Security & Compliance | [Security policy](/security) · [Privacy](/privacy) |
 
 </div>

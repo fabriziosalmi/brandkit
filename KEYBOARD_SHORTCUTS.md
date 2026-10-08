@@ -4,65 +4,40 @@ This document lists the keyboard shortcuts available in the BrandKit web interfa
 
 ## Available Shortcuts
 
-Press `Shift+?` anywhere in the application to view the keyboard shortcuts help dialog.
+Press `⌘K` or `Shift+?` anywhere in the application to view the keyboard shortcuts dialog.
 
 | Shortcut | Action |
 |----------|--------|
-| `Space` | Open file selector when upload area is focused |
-| `Ctrl+Enter` or `⌘+Enter` | Generate brand kit assets (submit form) |
-| `Escape` | Reset form or close dialogs |
-| `Shift+?` | Show keyboard shortcuts help dialog |
+| `Space` | Open file selector dialog |
+| `⌘+Enter` or `Ctrl+Enter` | Generate brand kit assets (submit form) |
+| `⌘+V` or `Ctrl+V` | Paste image directly from system clipboard |
+| `T` | Cycle interface theme (Light, Dark, System) |
+| `Escape` | Reset form, cancel active operation, or dismiss dialogs |
+| `Shift+?` / `⌘K` | Show keyboard shortcuts dialog |
 
 ## Keyboard Shortcut Details
 
-### Upload & Navigation
+### Upload and Ingestion
 
-- **Space**: Opens the file selector dialog when the upload area has focus. This provides quick access to file selection without using the mouse.
-
+- **Space**: Opens the operating system file selector dialog.
+- **⌘+V** (macOS) or **Ctrl+V** (Windows/Linux): Ingests image data currently held in the system clipboard.
 - **Escape**: Multi-purpose cancel key:
-  - When processing: Cancels the current operation
-  - When complete: Resets the form to start over
-  - When help dialog is open: Closes the dialog
-  - When format search is active: Clears the search query
+  - When processing: Aborts current generation.
+  - When complete: Clears results and resets the workspace.
+  - When dialog is open: Closes the modal.
+  - When search is active: Clears format query.
 
-### Generation
+### Execution
 
-- **Ctrl+Enter** (Windows/Linux) or **⌘+Enter** (macOS): Submits the form to generate brand kit assets. This only works when:
-  - At least one file is uploaded
-  - At least one format is selected
-  - At least one output format is chosen
-  - Processing is not already in progress
+- **⌘+Enter** (macOS) or **Ctrl+Enter** (Windows/Linux): Triggers brand asset generation when valid source files and targets are configured.
 
-### Help
+### Interface
 
-- **Shift+?**: Toggles the keyboard shortcuts help dialog. Press again or use Escape to close.
+- **T**: Cycles between Light, Dark, and System color schemes.
+- **Shift+?** or **⌘K**: Toggles the keyboard shortcut reference modal.
 
 ## Accessibility Features
 
-These shortcuts are designed to improve accessibility and efficiency:
-
-- Keyboard-only navigation is fully supported
-- All interactive elements can be reached with Tab key
-- Focus indicators show which element is currently selected
-- Screen reader friendly labels and ARIA attributes
-
-## Tips for Power Users
-
-- Use `Space` to quickly select a new image when starting a new brand kit
-- Use `Ctrl+Enter` or `⌘+Enter` to submit immediately after selecting formats
-- Use `Escape` to quickly reset and start over with a new image
-- Keep the shortcuts help dialog open while learning with `Shift+?`
-
-## Browser Compatibility
-
-These keyboard shortcuts work in all modern browsers:
-- Chrome/Chromium
-- Firefox
-- Safari
-- Edge
-
-**Note:** Some browsers may have conflicting shortcuts. If a shortcut doesn't work, check your browser's keyboard shortcuts settings.
-
----
-
-For more information about BrandKit features and usage, see the [README](README.md).
+- Full keyboard navigation supported across all form inputs and segmented controls.
+- High-contrast visual focus rings adhering to WCAG standards.
+- ARIA accessibility attributes across interactive elements.

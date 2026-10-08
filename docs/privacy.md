@@ -1,62 +1,62 @@
 ---
 title: Privacy
-description: What BrandKit does with your images, what it stores, for how long, and what this documentation site collects.
+description: Data handling, storage lifecycle, and privacy practices in BrandKit.
 ---
 
 # Privacy
 
-Two different things are covered here, and they are worth keeping apart.
+Two distinct components are documented here:
 
-- **[The BrandKit application](#the-application)** — the software you run. It has no telemetry and sends nothing anywhere, but it does write your images to disk.
-- **[This documentation site](#this-documentation-site)** — a static site on GitHub Pages.
+- **[The BrandKit application](#the-application)**: the self-hosted software running in your environment.
+- **[This documentation site](#this-documentation-site)**: a static site published via GitHub Pages.
 
-Neither is operated as a service by anyone. There is no hosted BrandKit, so there is no operator collecting anything.
+BrandKit is not operated as a centralized multi-tenant service; there is no cloud provider collecting telemetry.
 
 ---
 
 ## The application
 
-### What leaves your machine
+### Data egress
 
-**Nothing.** Images are processed in-process by Pillow, NumPy and ONNX Runtime. No image, no filename and no metadata is ever transmitted to a third party.
+**Zero outbound transmission.** Image operations execute in-process via Pillow, NumPy, and ONNX Runtime. Images, file identifiers, and metadata are never transmitted to external services.
 
-Since v1.1.3, Tailwind and Alpine.js are vendored under `static/vendor/` and served from your own origin, so **loading the page makes no third-party requests at all**. Earlier versions fetched them from `cdn.tailwindcss.com` and `cdn.jsdelivr.net`, which disclosed your IP address and the fact that you loaded the page to those CDNs. If you are still on v1.1.2 or earlier, that is a reason to upgrade.
+Tailwind CSS and Alpine.js assets are vendored locally under `static/vendor/` and served same-origin. The browser makes no third-party network calls during normal interface operation.
 
-The one outbound connection the application can make is **rembg downloading its ONNX model** on first use of background removal, from GitHub's release infrastructure. It transmits no data about you or your image — it is a plain file download — and you can eliminate it entirely by pre-seeding `~/.u2net/`. See [Background removal](/guide/background-removal#choosing-a-model).
+The single outbound network call the container can initiate is downloading the ONNX model (`u2net`) on initial use of neural background removal, fetched directly from official release assets. No user data or images are transmitted. This request can be eliminated entirely by pre-seeding `~/.u2net/` (see [Background removal](/guide/background-removal#choosing-a-model)).
 
-There is no analytics, no telemetry, no crash reporting, no update check and no phone-home of any kind.
+The application contains no analytics, tracking pixels, crash reporters, or phone-home pings.
 
-### What is written to disk
+### Local disk storage
 
-| Path | Contents | Written when |
+| File path | Purpose | Lifecycle trigger |
 | --- | --- | --- |
-| `static/uploads/<uuid>_<name>` | your uploaded original, EXIF-stripped | on every upload |
-| `static/uploads/<name>_<format>.<ext>` | every generated asset | on every generation |
-| `static/uploads/<name>_brandkit_<timestamp>.zip` | the download archive | on every generation |
-| `static/uploads/cache/` | resized intermediates, keyed by content hash | on every generation |
-| `~/.u2net/*.onnx` | rembg models | first background removal |
+| `static/uploads/<uuid>_<name>` | Ingested master image (EXIF-stripped) | Upload ingestion |
+| `static/uploads/<name>_<format>.<ext>` | Rendered target format | Pipeline execution |
+| `static/uploads/<name>_brandkit_<timestamp>.zip` | Export package archive | Pipeline execution |
+| `static/uploads/cache/` | Cached canvas intermediates | Pipeline execution |
+| `~/.u2net/*.onnx` | rembg neural model weights | First background removal |
 
-In Docker, `static/uploads/` is bind-mounted to the host — so these files are in your working copy, not confined to the container.
+When running Docker, `static/uploads/` is bind-mounted directly to the host filesystem.
 
-### Metadata
+### Metadata stripping
 
-EXIF is stripped from every upload, unconditionally, by re-encoding the image through a fresh Pillow buffer before anything else touches it. That removes GPS coordinates, timestamps, camera and lens identifiers, and any embedded thumbnail.
+EXIF metadata is stripped from master uploads unconditionally by decoding and re-serializing the pixel buffer through Pillow prior to storage. This process removes GPS coordinates, timestamps, camera identifiers, and embedded thumbnails.
 
-This happens whether or not you enable the `strip_metadata` option — that switch controls metadata and ICC profiles on the **generated** files, which is a separate step.
+The `strip_metadata` toggle in the UI specifically controls ICC color profile retention on downstream generated target files.
 
-::: tip Verify it yourself
+::: tip Verification
 ```bash
 exiftool static/uploads/<uuid>_yourphoto.jpg
 ```
-You should see file-system attributes and nothing else.
+The output confirms only filesystem attributes remain.
 :::
 
-### Retention
+### Retention and lifecycle
 
-A background thread deletes everything in `static/uploads/` and its `cache/` subdirectory once it is past the retention window — **24 hours by default, swept hourly**. It runs under gunicorn as well as under the development server, so the standard `docker compose up` does clean up after itself.
+A daemon cleanup thread evaluates `static/uploads/` and its `cache/` directory, removing files that exceed the retention ceiling (**default: 24 hours, swept hourly**). The thread operates under both Gunicorn and development runtimes.
 
-::: tip 24 hours is a default, not a recommendation
-Generated assets are readable by anyone who can reach the instance. If your users download within seconds, there is no reason to keep the files for a day:
+::: tip Recommended retention for shared environments
+On multi-user instances where users download generated archives immediately, shorten the retention window:
 
 ```bash
 # .env
@@ -64,53 +64,45 @@ BRANDKIT_RETENTION_HOURS=1
 BRANDKIT_CLEANUP_INTERVAL_HOURS=0.25
 ```
 
-Full details in [Performance & caching](/guide/performance#file-cleanup) and [Environment variables](/reference/environment#the-cleanup-variables).
+Consult [Performance & caching](/guide/performance#file-cleanup) and [Environment variables](/reference/environment#the-cleanup-variables).
 :::
 
-::: warning The sweep is per-container
-Retention is enforced by the running application. If you stop the container and leave the bind-mounted `static/uploads/` directory on the host, nothing deletes it — the files sit there until the container comes back or you remove them yourself.
+::: warning Host persistence
+Retention enforcement requires an active container. If the container process is stopped, existing assets in host bind mounts remain until the container resumes or files are manually purged.
 :::
 
-### Who can read the files
+### Access control
 
-Everything under `static/uploads/` is served by Flask **without any authentication or authorisation check**, and filenames are predictable (`<basename>_<format>.<ext>`).
+Files within `static/uploads/` are served by Flask without authentication using predictable file paths (`<basename>_<format>.<ext>`).
 
-On a localhost instance that is irrelevant. On any instance more than one person can reach, it means **anyone who can load the page can fetch anyone else's assets** by guessing a name — and search-engine crawlers can index them if the instance is public.
+On shared or networked instances, anyone with network access to the origin can retrieve stored assets. When processing confidential or unreleased brand materials, enforce authentication at the reverse proxy layer (see [Deployment](/guide/deployment)).
 
-If BrandKit handles client work, unreleased branding or anything else confidential, put an authenticating proxy in front of the whole application, `/static/` included. [Deployment](/guide/deployment) shows how with Caddy, Nginx and Cloudflare Access.
+### Application logging
 
-### Logs
+Logs stream to stdout at `INFO` level, containing timestamped request paths, format configurations, and execution durations. Image payload bytes are never logged.
 
-Application logs go to stdout at `INFO` level and include filenames, chosen formats and processing timings. They do not contain image content. In Docker they are captured by the container runtime — `docker compose logs` — and are subject to whatever retention your log driver has.
+### Operational governance
 
-### Your obligations
-
-If you run BrandKit for other people, **you** are the data controller for whatever they upload. Nothing in this project makes that determination for you. In practice that means: know what your retention actually is (see the warning above), restrict access, and tell your users where their files go.
+If you host BrandKit for third parties, you act as the data controller for uploaded content. Implement appropriate access policies, network isolation, and retention parameters accordingly.
 
 ---
 
 ## This documentation site
 
-This site is a static build published on **GitHub Pages**.
+Published as static HTML via **GitHub Pages**.
 
-| | |
+| Metric | Practice |
 | --- | --- |
-| **Cookies** | none set by this site |
-| **Analytics** | none. No Google Analytics, no Plausible, no pixel of any kind |
-| **Trackers** | none |
-| **Third-party requests** | none — fonts, CSS and JavaScript are all served from the same origin |
-| **Search** | VitePress local search. The index is a static file downloaded to your browser; queries never leave your device |
+| **Cookies** | None |
+| **Analytics** | None |
+| **Trackers** | None |
+| **Third-party scripts** | None: stylesheets and client scripts are served same-origin |
+| **Search** | VitePress local search: query indexing runs client-side in the browser |
 
-### What GitHub sees
+### Hosting infrastructure
 
-GitHub Pages, like any web host, processes the requests it serves. GitHub states that it collects IP addresses of Pages visitors for security and abuse-prevention purposes, and retains them for a limited period. That processing is GitHub's, governed by the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement), and this project has no access to it and no control over it.
+GitHub Pages processes incoming HTTP requests in accordance with the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement). The BrandKit project does not receive or manage visitor logs.
 
-### Contact
+### Inquiries
 
-Questions about this page, or about data this project holds: **fabrizio.salmi@gmail.com**.
-
-Security issues go through the [security policy](/security#reporting-a-vulnerability) instead.
-
----
-
-*Last reviewed: September 2026.*
+Contact: **fabrizio.salmi@gmail.com**. Security disclosures must follow the [security policy](/security#reporting-a-vulnerability).

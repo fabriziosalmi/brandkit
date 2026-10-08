@@ -1,66 +1,66 @@
 ---
 title: Image preprocessing
-description: Every preprocessing control in BrandKit, what it does to the image, and its default.
+description: Preprocessing controls, operational pipeline, and default parameters in BrandKit.
 ---
 
 # Image preprocessing
 
-Preprocessing runs **once on the source image**, before any format is rendered. That is what keeps a watermark or a hue shift consistent across the whole kit — and it is also why a setting that looks fine on a 1080×1080 square can look wrong on a 2480×3508 print sheet.
+Preprocessing executes once on the master source image prior to rendering target formats. This ensures adjustments such as color grading, auto-cropping, and watermarks remain uniform across the entire brand asset collection.
 
-The order of operations is fixed:
+The sequence of processing operations:
 
 1. Background removal
-2. Background colour / gradient fill
+2. Background color / gradient fill
 3. Edge smoothing
 4. Noise reduction
 5. Auto-crop
-6. Colour operations — grayscale, B&W, invert, hue, temperature, saturation, brightness, contrast
+6. Color adjustments: grayscale, B&W, invert, hue, temperature, saturation, brightness, contrast
 7. Sharpen or blur
 8. Vignette
 9. Drop shadow
 10. Watermark
 
-## Colour
+## Color adjustments
 
-| Control | Form field | Default | What it does |
+| Control | Form field | Default | Description |
 | --- | --- | --- | --- |
-| Grayscale | `grayscale` | `false` | Converts to luminance, keeping the alpha channel |
-| Black & white | `bw` | `false` | Hard threshold to pure black and white — no midtones |
-| Invert | `invert` | `false` | Inverts RGB, leaves alpha alone |
-| Hue shift | `hue_shift` | `0` | Rotates hue in degrees, −180 to +180 |
-| Temperature | `temperature` | `0` | Warm (positive, boosts red) to cool (negative, boosts blue), −100 to +100 |
-| Saturation | `saturation` | `1.0` | `0.0` is fully desaturated, `1.0` is unchanged, `>1.0` boosts |
-| Brightness | `brightness` | `1.0` | Same scale as saturation |
-| Enhance contrast | `enhance_contrast` | `false` | Applies an autocontrast pass |
+| Grayscale | `grayscale` | `false` | Converts RGB channels to luminance while preserving alpha transparency |
+| Black & white | `bw` | `false` | High-contrast binarization to pure black and pure white |
+| Invert | `invert` | `false` | Inverts RGB values while retaining alpha values |
+| Hue shift | `hue_shift` | `0` | Rotates color hue in degrees (-180° to +180°) |
+| Temperature | `temperature` | `0` | Warm (positive, red-shifted) to cool (negative, blue-shifted), -100 to +100 |
+| Saturation | `saturation` | `1.0` | `0.0` is fully desaturated, `1.0` is neutral, `>1.0` enhances vibrance |
+| Brightness | `brightness` | `1.0` | Multiplier scale matching saturation |
+| Enhance contrast | `enhance_contrast` | `false` | Applies automated histogram contrast equalization |
 
 ::: tip Grayscale vs B&W
-`grayscale` is what you want for a monochrome logo variant. `bw` is a hard threshold — useful for testing whether a mark survives being reduced to a stencil, rarely useful as a deliverable.
+`grayscale` preserves smooth midtone tonal gradients and is recommended for monochrome brand variations. `bw` applies binary thresholding, best suited for testing stencil legibility.
 :::
 
-## Sharpness and blur
+## Sharpness and filtering
 
 | Control | Form field | Default | Notes |
 | --- | --- | --- | --- |
-| Sharpen | `sharpen` | `false` | Unsharp mask |
-| Sharpen radius | `sharpen_radius` | `1.0` | Larger radius, coarser halo |
-| Blur | `apply_blur` | `false` | Gaussian blur |
-| Blur radius | `blur_radius` | `2` | In pixels, at source resolution |
-| Noise reduction | `noise_reduction` | `false` | Median filter; needs OpenCV for the stronger path |
-| Noise strength | `noise_strength` | `1` | Integer; higher is more aggressive and softer |
-| Enhance quality | `enhance_quality` | `false` | Combined contrast + sharpness + colour pass |
+| Sharpen | `sharpen` | `false` | Applies unsharp masking |
+| Sharpen radius | `sharpen_radius` | `1.0` | Controls filter radius (higher values produce broader halos) |
+| Blur | `apply_blur` | `false` | Applies Gaussian blur |
+| Blur radius | `blur_radius` | `2` | Radius in pixels at source resolution |
+| Noise reduction | `noise_reduction` | `false` | Median filter; utilizes OpenCV when present |
+| Noise strength | `noise_strength` | `1` | Kernel size: higher values increase smoothing |
+| Enhance quality | `enhance_quality` | `false` | Combined contrast, sharpening, and color correction pass |
 
-Sharpen and blur are mutually antagonistic — turning both on will apply both, in that order, and you will get a soft image with ringing. Pick one.
+Sharpening and blurring are counteracting operations. Enabling both applies them sequentially, introducing blurring with halo artifacts. Select the single filter appropriate for your source.
 
-## Composition
+## Composition & framing
 
 | Control | Form field | Default | Notes |
 | --- | --- | --- | --- |
-| Auto-crop | `auto_crop` | `false` | Trims uniform borders down to the content bounding box |
-| Crop padding | `crop_padding` | `10` | Pixels of margin left around the content after trimming |
-| Vignette | `vignette` | `false` | Darkens the edges radially |
-| Vignette strength | `vignette_strength` | `0.5` | `0.0`–`1.0` |
+| Auto-crop | `auto_crop` | `false` | Trims empty or uniform borders down to active subject bounds |
+| Crop padding | `crop_padding` | `10` | Margin in pixels retained around the subject after boundary trimming |
+| Vignette | `vignette` | `false` | Applies radial perimeter darkening |
+| Vignette strength | `vignette_strength` | `0.5` | Intensity scale: `0.0` to `1.0` |
 
-**Auto-crop is the single most useful control here.** If your logo has a lot of empty canvas around it, every format will render it small and lost. Auto-crop with 10–20 px of padding fixes that once, for all formats.
+Auto-crop is particularly effective for logos exported with wide transparent margins. Combining auto-crop with 10-20 px padding ensures the mark fills all output canvases proportionally.
 
 ## Drop shadow
 
@@ -72,9 +72,9 @@ Sharpen and blur are mutually antagonistic — turning both on will apply both, 
 | Offset X | `shadow_offset_x` | `5` |
 | Offset Y | `shadow_offset_y` | `5` |
 
-The shadow is drawn from the alpha channel, so it only produces something meaningful on an image that actually has transparency — either a source PNG with an alpha channel or the output of [background removal](/guide/background-removal).
+Drop shadows are calculated from the alpha boundary. This requires an image with an active alpha channel, originating either from a transparent PNG/WebP source or via [background removal](/guide/background-removal).
 
-## Watermark
+## Watermark overlay
 
 | Control | Form field | Default |
 | --- | --- | --- |
@@ -82,21 +82,21 @@ The shadow is drawn from the alpha channel, so it only produces something meanin
 | Text | `watermark_text` | `© BrandKit` |
 | Opacity | `watermark_opacity` | `0.3` |
 
-The watermark is rendered with Pillow's default bitmap font unless a TrueType face is available on the host, so it will look coarse on very large canvases. Set your own default text in [`config.json`](/reference/configuration).
+Watermarks render using Pillow bitmap rendering unless custom system TrueType fonts are mounted. Configure default text in [`config.json`](/reference/configuration).
 
-## Output encoding
+## Output encoding options
 
-These two are not preprocessing — they apply at encode time, per generated file.
+These settings operate during per-canvas encoding rather than global preprocessing:
 
 | Control | Form field | Default | Notes |
 | --- | --- | --- | --- |
-| Quality | `quality` | `95` | JPEG and WebP only; PNG and ICO ignore it |
-| Strip metadata | `strip_metadata` | `false` | Drops the ICC profile and remaining metadata from generated files |
+| Quality | `quality` | `95` | Applies to JPEG and WebP; ignored by PNG and ICO |
+| Strip metadata | `strip_metadata` | `false` | Discards ICC color profiles and leftover metadata from output files |
 
-::: info EXIF is always stripped from the upload
-Regardless of the `strip_metadata` switch, the *uploaded original* is re-encoded through Pillow immediately on receipt, which discards EXIF — including GPS coordinates and camera serial numbers. `strip_metadata` controls the *generated* files only. See [Privacy](/privacy).
+::: info Source EXIF handling
+Uploaded master images are re-encoded through Pillow upon ingestion, which strips camera and GPS EXIF metadata. The `strip_metadata` parameter controls downstream target asset headers. Consult [Privacy](/privacy).
 :::
 
-## Changing the defaults
+## Customizing defaults
 
-Every default above lives in `preprocessing_options` in [`config.json`](/reference/configuration#preprocessing-defaults). Edit it there and the UI starts with your values.
+Default parameter values are declared under `preprocessing_options` in [`config.json`](/reference/configuration#preprocessing-defaults). Modifying this structure alters the initial UI state.

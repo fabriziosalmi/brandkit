@@ -5,7 +5,7 @@ description: How to report bugs, propose features and open pull requests against
 
 # Contributing
 
-Contributions are welcome. The project is small and single-maintainer, so the process is light.
+Contributions are welcome. The project is maintained with a straightforward contribution workflow.
 
 The authoritative version of this document is [`CONTRIBUTING.md`](https://github.com/fabriziosalmi/brandkit/blob/main/CONTRIBUTING.md) in the repository.
 
@@ -17,25 +17,25 @@ Everyone participating is bound by the [Code of Conduct](/code-of-conduct).
 
 Open a [bug report](https://github.com/fabriziosalmi/brandkit/issues/new?template=bug_report.md) and include:
 
-- what you expected and what happened instead
-- exact steps to reproduce
-- the startup log — `docker compose logs brandkit` or the console output
+- Expected behavior versus observed behavior
+- Exact steps to reproduce the issue
+- Service logs: `docker compose logs brandkit` or terminal console output
 - Python version, or Docker and Compose versions
-- your operating system
-- the source image, if it is not confidential and the bug depends on it
+- Operating system details
+- Sample source image, if non-confidential and required to reproduce
 
 ::: danger Never report a security issue as a public issue
-Email **fabrizio.salmi@gmail.com** instead. See the [security policy](/security#reporting-a-vulnerability).
+Email **fabrizio.salmi@gmail.com** directly. Refer to the [security policy](/security#reporting-a-vulnerability).
 :::
 
 ## Proposing a feature
 
-Open a [feature request](https://github.com/fabriziosalmi/brandkit/issues/new?template=feature_request.md). Describe the problem before the solution — what are you trying to do that BrandKit makes hard?
+Open a [feature request](https://github.com/fabriziosalmi/brandkit/issues/new?template=feature_request.md). Describe the concrete problem before the proposed solution, clarifying the specific user need.
 
-Two things that are almost always accepted:
+Common contribution areas:
 
-- **New formats.** They are pure data in `config.json`. If a platform changed its recommended image size, that is a one-line PR and a genuinely useful one.
-- **Documentation fixes.** Every page on this site has an "Edit this page on GitHub" link at the bottom.
+- **New target formats:** Declared in `config.json`. Platform image dimension updates can be submitted as single-line pull requests.
+- **Documentation improvements:** Every documentation page includes an "Edit this page on GitHub" reference.
 
 ## Development setup
 
@@ -51,67 +51,66 @@ pip install -r requirements.txt
 FLASK_ENV=development python app.py
 ```
 
-`FLASK_ENV=development` gives you auto-reload and the Werkzeug debugger on `http://127.0.0.1:8000`. Never set it anywhere anyone else can reach.
+`FLASK_ENV=development` enables auto-reload and the Werkzeug debugger on `http://127.0.0.1:8000`. Never expose this mode on public networks.
 
-### Where things live
+### Architecture Map
 
-| File | What it is |
-| --- | --- |
-| `app.py` | the entire backend — routes, image pipeline, caching, cleanup |
-| `templates/index.html` | the entire frontend — one Jinja template with inline Alpine.js |
-| `config.json` | the format catalogue and preprocessing defaults |
-| `static/vendor/` | vendored Tailwind and Alpine — **do not replace with CDN links** |
-| `docs/` | this documentation site (VitePress) |
-
-The project is deliberately two files. If a change would split them, say so in the issue first.
+| File | Purpose |
+| :--- | :--- |
+| `app.py` | Backend application factory, route dispatching, and security middleware |
+| `image_processing.py` | Image resizing, color grading, background segmentation, and transformations |
+| `cleanup.py` | Background retention sweeper and garbage collection |
+| `config_utils.py` | Configuration ingestion and validation utilities |
+| `templates/index.html` | High-density Linear/Vercel frontend workbench with Alpine.js |
+| `config.json` | Format specifications and preprocessing parameter defaults |
+| `static/vendor/` | Vendored Tailwind and Alpine libraries (served same-origin) |
+| `docs/` | VitePress documentation source files |
 
 ## Pull requests
 
-1. Fork and branch — `git checkout -b feat/short-description`
-2. Make the change
-3. Test it (see below)
-4. Commit with a [Conventional Commits](https://www.conventionalcommits.org/) prefix — `feat:`, `fix:`, `docs:`, `ci:`, `build(deps):`
-5. Open the PR against `main`, describing what changed and how you verified it
+1. Fork and branch: `git checkout -b feat/short-description`
+2. Implement your modification
+3. Run the automated test suite
+4. Commit using Conventional Commits prefixes (`feat:`, `fix:`, `docs:`, `ci:`, `build(deps):`)
+5. Open the pull request against `main`, detailing changes and validation steps
 
-Keep pull requests focused. A formatting sweep mixed into a behaviour change is very hard to review.
+Keep pull requests focused and atomic.
 
-### CI
+### Continuous Integration (CI)
 
-Every push and pull request runs the [CI workflow](https://github.com/fabriziosalmi/brandkit/blob/main/.github/workflows/ci.yml): install `requirements.txt` on Python 3.11 and 3.12, then `pytest -v`.
+Every push and pull request executes the [CI workflow](https://github.com/fabriziosalmi/brandkit/blob/main/.github/workflows/ci.yml): installing `requirements.txt` on Python 3.11 and 3.12, followed by `pytest -v`.
 
-Run tests locally with:
+Execute tests locally with:
 
 ```bash
 pytest -q
 ```
 
-### Manual test checklist
+### Manual Verification Checklist
 
-Beyond the automated test suite, verify manually:
+- [ ] Web workbench loads and displays all format groups
+- [ ] Ingestion bench processes single and batch images
+- [ ] Clipboard paste (`⌘+V` / `Ctrl+V`) loads images properly
+- [ ] Theme switcher toggles cleanly between Light, Dark, and System modes with zero FOUC
+- [ ] PNG outputs preserve alpha transparency; JPG flattens to specified matte
+- [ ] ICO output generates multi-size streams when `favicon` is selected
+- [ ] Background removal functions as expected or falls back cleanly
+- [ ] ZIP archive contains all expected asset outputs
+- [ ] `POST /upload` rejects requests lacking CSRF tokens with HTTP `400`
+- [ ] Rate limits enforce HTTP `429` on excessive upload attempts
 
-- [ ] the page loads and the format catalogue renders
-- [ ] an upload generates the expected files with the expected dimensions
-- [ ] PNG output keeps transparency; JPG flattens it
-- [ ] ICO is produced when `favicon` is selected, and only then
-- [ ] background removal works, or degrades cleanly when `rembg` is absent
-- [ ] the ZIP contains everything shown in the results grid
-- [ ] `POST /upload` without a CSRF token still returns `400`
-- [ ] the sixth upload in a minute returns `429`
+### Documentation Verification
 
-### Documentation
-
-If your change alters behaviour, update the docs in the same pull request.
+When modifying application behavior, update documentation files accordingly.
 
 ```bash
 npm install
-npm run docs:dev      # http://localhost:5173
-npm run docs:build    # production build, catches dead links
+npm run docs:dev      # Dev server on http://localhost:5173
+npm run docs:build    # Production build and dead-link validation
 ```
 
-`docs:build` fails on broken internal links, so run it before pushing.
-
-::: info Why `package.json` has an `overrides` block
-VitePress 1.6.4 pins Vite 5, which is no longer receiving fixes for a set of dev-server advisories (a `server.fs.deny` bypass, a path traversal in optimized-deps `.map` handling, and the esbuild CORS issue). VitePress 2 is still alpha, so the toolchain is pulled forward with npm `overrides` instead:
+::: info Dependency Overrides
+VitePress 1.6.4 requires specific security overrides in `package.json`:
 
 ```json
 "overrides": {
@@ -120,23 +119,21 @@ VitePress 1.6.4 pins Vite 5, which is no longer receiving fixes for a set of dev
 }
 ```
 
-The combination is verified — the site builds and renders correctly — but it is ahead of what VitePress 1.6 declares. If a build breaks after a dependency bump, this block is the first thing to look at. Drop it once VitePress 2 is stable.
-
-None of this reaches the published site: GitHub Pages serves static output, so Vite exists only at build time and in `npm run docs:dev`.
+The combination is verified: the site builds and renders correctly.
 :::
 
-## Style
+## Code Style
 
-**Python** — PEP 8, four spaces, `snake_case`. Docstrings on any function that is not obvious. Prefer clarity over cleverness; this codebase is read far more often than it is written.
+**Python**: Adhere to PEP 8, 4 spaces indentation, `snake_case`. Document non-trivial functions with docstrings.
 
-**Commits** — imperative mood, Conventional Commits prefix, one logical change each.
+**Commits**: Use imperative mood with Conventional Commits prefixes.
 
-## Getting help
+## Community & Support
 
-- [Issues](https://github.com/fabriziosalmi/brandkit/issues) for bugs and features
-- [Troubleshooting](/guide/troubleshooting) for problems running it
-- **fabrizio.salmi@gmail.com** for security reports
+- [GitHub Issues](https://github.com/fabriziosalmi/brandkit/issues) for defect tracking and features
+- [Troubleshooting](/guide/troubleshooting) for operational diagnostics
+- **fabrizio.salmi@gmail.com** for responsible security disclosure
 
-## Licence
+## License
 
-Contributions are licensed under the [MIT License](https://github.com/fabriziosalmi/brandkit/blob/main/LICENSE), the same as the project.
+BrandKit is licensed under the MIT License. See [LICENSE](https://github.com/fabriziosalmi/brandkit/blob/main/LICENSE) for terms.

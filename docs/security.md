@@ -1,64 +1,63 @@
 ---
 title: Security
-description: BrandKit's security model, its built-in controls, its known gaps, and how to report a vulnerability.
+description: BrandKit security architecture, builtin protections, operational considerations, and vulnerability disclosure.
 ---
 
 # Security
 
-BrandKit is an **unauthenticated, single-tenant image-processing service** designed to run on a machine you control. Every security decision below follows from that. If you deploy it differently, the threat model changes and the mitigations are yours to add.
+BrandKit is an **unauthenticated, single-tenant image-processing service** designed for deployment within trusted environments. Every security decision follows from that model. When exposing the application across untrusted networks, perimeter security controls must be implemented at the reverse proxy layer.
 
 ## Reporting a vulnerability
 
-**Do not open a public GitHub issue for a security vulnerability.**
+**Do not open a public GitHub issue for security disclosures.**
 
 Email **fabrizio.salmi@gmail.com** with:
 
-- a description of the vulnerability
-- steps to reproduce
-- the impact you believe it has
-- a suggested fix, if you have one
-- how to contact you
+- Vulnerability description and impact assessment
+- Reproduction steps and proof of concept
+- Remediation proposal (if available)
+- Contact details
 
-Machine-readable contact details are published at [`/.well-known/security.txt`](/.well-known/security.txt) per [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116).
+Machine-readable contact metadata is published at [`/.well-known/security.txt`](/.well-known/security.txt) per [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116).
 
-### What to expect
+### Response timeline
 
-| Stage | Target |
+| Stage | Target window |
 | --- | --- |
-| Acknowledgement | within 48 hours |
-| Initial assessment | within 5 business days |
-| Progress updates | every 7 days until resolved |
-| Fix for a critical issue | within 30 days |
-| Public disclosure | within 90 days of a fix, timing coordinated with you |
+| Acknowledgment | Within 48 hours |
+| Initial assessment | Within 5 business days |
+| Status updates | Every 7 days until resolved |
+| Remediation (Critical) | Within 30 days |
+| Public disclosure | Within 90 days, coordinated with reporter |
 
-Researchers are credited unless they prefer to stay anonymous.
+Researchers are credited upon publication unless anonymity is requested.
 
-### Severity
+### Severity classification
 
 | Level | Examples |
 | --- | --- |
-| **Critical** | remote code execution, authentication bypass |
-| **High** | data exposure, privilege escalation |
-| **Medium** | XSS, CSRF not covered by existing protections |
-| **Low** | information disclosure, minor issues |
+| **Critical** | Remote code execution, arbitrary file writes |
+| **High** | Data exposure, path traversal |
+| **Medium** | Cross-site scripting (XSS), cross-site request forgery (CSRF) bypass |
+| **Low** | Verbose error disclosures, localized resource consumption |
 
 ### Supported versions
 
-Only the latest release receives security updates. Currently that is **v1.1.4**.
+Security patches are published exclusively against the latest release branch (currently **v1.1.4**).
 
 ---
 
-## What is built in
+## Built-in security controls
 
-### Request layer
+### Request handling
 
-| Control | Implementation | Notes |
+| Control | Mechanism | Description |
 | --- | --- | --- |
-| **CSRF protection** | Flask-WTF `CSRFProtect` | applies to every `POST`; token minted per session at `GET /` |
-| **Rate limiting** | Flask-Limiter | 200/day, 50/hour globally; 5/min on `/upload`; `memory://` storage |
-| **Security headers** | Flask-Talisman | CSP, `X-Content-Type-Options`, `X-Frame-Options`, referrer policy |
-| **Upload size cap** | `MAX_CONTENT_LENGTH` | 16 MB by default, via `BRANDKIT_MAX_UPLOAD_MB` |
-| **Session secret** | `BRANDKIT_SECRET_KEY` | stable across restarts and workers when set; ephemeral with a warning when not |
+| **CSRF defense** | Flask-WTF `CSRFProtect` | Enforced on all state-changing HTTP POST endpoints; token minted on `GET /` |
+| **Rate limiting** | Flask-Limiter | 200/day, 50/hour globally; 5/min on `/upload`; in-memory tracking |
+| **Security headers** | Flask-Talisman | CSP, `X-Content-Type-Options`, `X-Frame-Options`, strict referrer policy |
+| **Payload ceiling** | `MAX_CONTENT_LENGTH` | 16 MB default, configurable via `BRANDKIT_MAX_UPLOAD_MB` |
+| **Session secret** | `BRANDKIT_SECRET_KEY` | Deterministic secret storage; displays startup warning when omitted |
 
 ### Content Security Policy
 
@@ -69,96 +68,65 @@ script-src  'self' 'unsafe-inline' 'unsafe-eval'
 style-src   'self' 'unsafe-inline'
 ```
 
-`'unsafe-inline'` and `'unsafe-eval'` are required by Alpine.js, which evaluates expressions from `x-` attributes. That is a real weakening of the CSP and the price of the framework.
+`'unsafe-inline'` and `'unsafe-eval'` are required by Alpine.js for declarative directive execution.
 
-No third-party origin is allowed: Tailwind and Alpine are vendored under `static/vendor/` and served same-origin, so nothing external can be loaded even if a script were injected.
+No external origins are permitted: Tailwind CSS and Alpine.js assets are vendored under `static/vendor/` and served same-origin, eliminating external script injection vectors.
 
-### File handling
+### File system integrity
 
-- **Extension allowlist** — `png`, `jpg`, `jpeg`, `gif`, `webp`, matched case-insensitively after the last dot.
-- **`secure_filename()`** on every upload, plus a UUID prefix, so the stored name is `<uuid4>_<sanitised>`.
-- **Decode validation** — the file is opened with Pillow immediately. If that fails, the upload is deleted and the request is rejected with `400`.
-- **Mandatory EXIF stripping** — the image is re-encoded through a fresh `Image.new()` on receipt, discarding GPS coordinates, camera serials and every other tag. This is not optional and not tied to the `strip_metadata` switch.
-- **Scheduled deletion** — a background thread sweeps `static/uploads/` and its cache on an interval, deleting anything past the retention window (hourly, 24 hours, by default). Configurable via [`BRANDKIT_CLEANUP_INTERVAL_HOURS` and `BRANDKIT_RETENTION_HOURS`](/reference/environment).
+- **Extension validation:** Restricted to `png`, `jpg`, `jpeg`, `gif`, `webp` (matched case-insensitively).
+- **Name sanitization:** `secure_filename()` applied to all incoming uploads alongside a UUID4 prefix (`<uuid4>_<sanitized>`).
+- **Buffer validation:** Uploads are immediately parsed through Pillow. Corrupt or unparseable buffers are deleted and rejected with HTTP 400.
+- **Mandatory EXIF stripping:** Ingested images are re-encoded through a clean Pillow memory buffer, stripping camera metadata, serials, and geolocation coordinates.
+- **Scheduled purge:** Internal worker thread sweeps `static/uploads/` and cache directories according to configured retention periods.
 
-### No third-party egress
+### Network isolation
 
-Since v1.1.3, loading the page contacts nothing but your own server. The only outbound connection the app ever makes is rembg fetching its ONNX model on first use, and you can pre-seed that. BrandKit runs air-gapped.
-
----
-
-## Known hardening gaps
-
-These are real and currently unfixed. They are listed here rather than buried because operators need to make decisions around them.
-
-### Generated assets are world-readable
-
-Everything lands in `static/uploads/`, which Flask serves without any authorisation check, and filenames follow a predictable pattern (`<basename>_<format>.<ext>`). On any instance more than one person can reach, one user's assets are enumerable by another. **Authenticate at the proxy** — see [Deployment](/guide/deployment).
-
-This is the single most important thing to understand before exposing BrandKit to anyone else.
-
-### Error strings are echoed to the client
-
-`/analyze` and parts of `/upload` interpolate the exception message into the JSON response. That can disclose filesystem paths and library internals. Low impact on a trusted network; another reason not to expose the service publicly.
-
-### No virus scanning
-
-Uploaded files are validated as decodable images and nothing more. If you accept files from untrusted people, scan them separately.
-
-### No test suite
-
-CI installs the dependencies and imports the module. There is no automated coverage of the upload path, the CSRF behaviour or the image pipeline, so regressions in any of them would not be caught before release. Contributions welcome — see [Contributing](/contributing#ci).
+Loading application pages initiates zero external network requests. The only external request the container can trigger is downloading neural weights on initial background removal invocations, which can be pre-cached to support air-gapped environments.
 
 ---
 
-## Recently closed
+## Operational hardening considerations
 
-For operators upgrading from v1.1.3, these were documented gaps that are now fixed:
+### Asset visibility
 
-| Was | Now |
-| --- | --- |
-| `SECRET_KEY` regenerated per process, breaking CSRF across gunicorn workers | read from `BRANDKIT_SECRET_KEY` (or `FLASK_SECRET_KEY`), with a startup warning when unset |
-| CSP still allowed `cdn.tailwindcss.com` and `cdn.jsdelivr.net` | both removed; no third-party script origin is permitted |
-| `/download-zip/<filename>` joined the path without validating it | name is checked against `secure_filename()`, restricted to `.zip`, and the resolved path is confirmed to stay inside the upload folder |
-| The cleanup thread never ran under gunicorn | started at import time, so it runs under gunicorn too; interval and retention are configurable |
-| `zipfile36` pinned but never imported | removed |
+Files in `static/uploads/` are served without authentication. On multi-tenant or internet-exposed instances, enforce access control at the reverse proxy layer (see [Deployment](/guide/deployment)).
 
-## Dependency security
+### Verbose error feedback
 
-Dependencies are pinned exactly in `requirements.txt` and watched by Dependabot and OSV. The image-processing stack — Pillow above all — is a frequent source of advisories, because parsing untrusted image formats in C is exactly the kind of thing that produces heap overflows.
+Selected endpoints (`/analyze`) return raw error strings for debugging convenience. In production, proxy layers should intercept 5xx errors to prevent revealing filesystem paths.
 
-Dependabot is configured for **security updates only** (`.github/dependabot.yml` sets `open-pull-requests-limit: 0` on every ecosystem). Routine version bumps are not opened automatically: across pip, npm, GitHub Actions and Docker they arrive a dozen at a time and most need a judgement call — a new Python base image, a major action bump, a transitive pin that would violate another package's ceiling. Advisories are the part that has to move quickly, so that is what is automated.
+### Antivirus scanning
 
-The practical consequence for anyone running BrandKit: **a quiet PR queue does not mean your dependencies are current**, only that nothing has an open advisory. Upgrade deliberately as well.
+Buffers are validated for image decodability. Deploy an external antivirus scanner if processing untrusted public submissions.
 
-**Keep Pillow current. It is the single most security-relevant dependency in this project**, and it is the one that sits directly in front of attacker-controlled bytes.
+---
+
+## Dependency management
+
+Dependencies are pinned in `requirements.txt` and monitored via Dependabot and OSV audits. Image processing libraries (particularly Pillow) require consistent maintenance:
 
 ```bash
-# see what is outdated
-pip list --outdated
-
-# check installed packages against the OSV database
+# Audit installed packages against known CVEs
 pip install pip-audit && pip-audit
 ```
 
-Rebuild the container after any bump: `docker compose up -d --build`.
+Rebuild container images after applying updates: `docker compose up -d --build`.
 
 ---
 
-## Deployment guidance
+## Core deployment rules
 
-The full checklist is in [Deployment](/guide/deployment#production-checklist). The four that matter most:
-
-1. **Authenticate everything, including `/static/`.** Basic auth is enough for a small team; Cloudflare Access is better.
-2. **Set `BRANDKIT_SECRET_KEY`.** Without it the key is ephemeral, sessions break on restart, and you cannot run more than one worker.
-3. **Terminate TLS at a proxy.** Talisman is configured with `force_https=False` and will not redirect or emit HSTS itself.
-4. **Never set `FLASK_ENV=development` on a reachable host.** The Werkzeug debugger is a remote shell.
-5. **Bind the container to `127.0.0.1`** and let only the proxy reach it.
+1. **Authenticate site-wide:** Enforce reverse-proxy authentication over both application endpoints and `/static/`.
+2. **Configure `BRANDKIT_SECRET_KEY`:** Required for multi-worker Gunicorn stability.
+3. **Terminate TLS externally:** Configure reverse proxies to manage certificates and enforce HSTS.
+4. **Enforce `FLASK_ENV=production`:** Never enable debug mode in exposed environments.
+5. **Bind container to localhost:** Map `"127.0.0.1:8000:8000"` to avoid exposing internal sockets to public network interfaces.
 
 ---
 
-## Threat model, stated plainly
+## Threat model boundaries
 
-**In scope:** malformed image files reaching the decoder, CSRF against a logged-in browser, resource exhaustion through large or numerous uploads, metadata leakage from uploaded photographs.
+**In scope:** Image parser exploit mitigation, CSRF protection, resource limit enforcement, EXIF metadata sanitization.
 
-**Out of scope, by design:** multi-tenant isolation, access control, audit logging, and anything that assumes hostile users share an instance. BrandKit has no concept of a user. If you need those properties, they belong in the layer in front of it.
+**Out of scope:** Native multi-tenant isolation, user identity management, audit logging. Security boundaries must be enforced upstream.

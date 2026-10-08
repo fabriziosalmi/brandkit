@@ -1,15 +1,15 @@
 ---
 title: Format catalogue
-description: Every output format BrandKit ships with, its pixel dimensions, aspect ratio and intended use.
+description: Reference index of BrandKit output formats, dimensions, aspect ratios, and target specifications.
 ---
 
 # Format catalogue
 
-These are the formats defined by the shipped `config.json` merged over the built-in defaults — **45 in total**. Add, remove or resize any of them by editing [`config.json`](/reference/configuration).
+The standard BrandKit configuration defines **45 named canvas formats** across ten operational categories. Canvases can be customized or extended by editing [`config.json`](/reference/configuration).
 
-Dimensions are the target canvas. The source image is fitted into it; it is never upscaled beyond its own resolution, so check the previews when you request something larger than your source.
+Dimensions represent canvas boundaries. Source images scale proportionally within the boundaries without upscaling beyond original pixel dimensions.
 
-## By category
+## Format categories
 
 ### Social Media
 
@@ -52,7 +52,7 @@ Dimensions are the target canvas. The source image is fitted into it; it is neve
 | Format key | Size | Ratio | Description |
 | --- | --- | --- | --- |
 | `logo_transparent` | 512×512 | 1:1 | Transparent Logo (PNG only) |
-| `square_1024` | 1024×1024 | 1:1 | Square (1024x1024) - App icon, profile, general purpose |
+| `square_1024` | 1024×1024 | 1:1 | Square (1024x1024): App icon, profile, general purpose |
 | `favicon` | 16×16 | 1:1 | Favicon |
 | `square_small` | 256×256 | 1:1 | Small Square Icon |
 | `square_large` | 2048×2048 | 1:1 | Large Square Format |
@@ -63,7 +63,7 @@ Dimensions are the target canvas. The source image is fitted into it; it is neve
 | --- | --- | --- | --- |
 | `product_square` | 800×800 | 1:1 | Product Image Square |
 | `product_wide` | 1200×800 | 3:2 | Product Image Wide |
-| `square_1024` | 1024×1024 | 1:1 | Square (1024x1024) - App icon, profile, general purpose |
+| `square_1024` | 1024×1024 | 1:1 | Square (1024x1024): App icon, profile, general purpose |
 
 ### Print
 
@@ -89,7 +89,7 @@ Dimensions are the target canvas. The source image is fitted into it; it is neve
 
 | Format key | Size | Ratio | Description |
 | --- | --- | --- | --- |
-| `square_1024` | 1024×1024 | 1:1 | Square (1024x1024) - App icon, profile, general purpose |
+| `square_1024` | 1024×1024 | 1:1 | Square (1024x1024): App icon, profile, general purpose |
 
 ### Business Documents
 
@@ -105,9 +105,9 @@ Dimensions are the target canvas. The source image is fitted into it; it is neve
 | --- | --- | --- | --- |
 | `ebook_cover` | 1600×2560 | 5:8 | Ebook cover (portrait) |
 
-### Uncategorised
+### Uncategorized formats
 
-Defined in the catalogue but not listed under any category — still selectable via search.
+Available across format matrices and indexed by search queries:
 
 | Format key | Size | Ratio | Description |
 | --- | --- | --- | --- |
@@ -116,7 +116,7 @@ Defined in the catalogue but not listed under any category — still selectable 
 | `profile_picture` | 400×400 | 1:1 | Profile Picture |
 | `cover_photo` | 1920×1080 | 16:9 | Cover Photo |
 
-## Full alphabetical index
+## Alphabetical index
 
 | Format key | Size | Ratio |
 | --- | --- | --- |
@@ -166,31 +166,22 @@ Defined in the catalogue but not listed under any category — still selectable 
 | `website_banner_mobile` | 360×120 | 3:1 |
 | `youtube_thumbnail` | 1280×720 | 16:9 |
 
-## Output types
+## Output encoding options
 
-Each selected format is rendered into each selected output type.
-
-| Type | Alpha | Notes |
+| Format | Alpha channel | Characteristics |
 | --- | --- | --- |
-| `png` | yes | lossless, the safe default |
-| `jpg` | no | honours the quality slider; flattens transparency |
-| `webp` | yes | honours the quality slider; smallest at equal quality |
-| `ico` | yes | **only produced for the `favicon` format**; packs 16×16, 32×32 and 48×48 into one file |
+| `png` | Yes | Lossless compression, universal standard |
+| `jpg` | No | Quantized lossy encoding; discards alpha |
+| `webp` | Yes | Compact modern encoding; retains alpha |
+| `ico` | Yes | Generated for `favicon` canvas; packages 16×16, 32×32, and 48×48 icons |
 
-## Naming
+## Naming conventions
 
 ```
 <source-basename>_<format-key>.<ext>
 <source-basename>_favicon.ico
 ```
 
-With variations mode on, the variation label is inserted between the basename and the format key — `acme_Grayscale_social.png`.
+Under variations mode, the treatment identifier is injected: `<source-basename>_<variation>_<format>.<ext>`.
 
-The pixel dimensions are **not** part of the filename; the format key is what identifies the size.
-
-## Notes on specific formats
-
-- **`favicon`** is 16×16 in the shipped `config.json`, but the generated `.ico` always contains 16, 32 and 48 pixel entries regardless.
-- **`print_a4`** (2480×3508) and **`print_letter`** (2550×3300) are sized for 300 DPI. They are the two largest canvases in the catalogue and the most expensive to render.
-- **`logo_transparent`** only makes sense with PNG or WebP output, and with a source that has an alpha channel — or with [background removal](/guide/background-removal) enabled.
-- **`twitter`** appears at 1500×500 (the header banner). The 1200×675 card size lives in the built-in defaults and is overridden by `config.json`; if you want the card, add it back under a different key.
+Target pixel dimensions are mapped directly from format keys rather than encoded in the filename.

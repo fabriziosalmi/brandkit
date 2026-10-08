@@ -5,22 +5,22 @@ description: Install and run BrandKit locally with Docker or a Python virtual en
 
 # Getting started
 
-There are two supported ways to run BrandKit. Pick Docker unless you intend to change the code.
+There are two supported ways to run BrandKit. Use Docker unless you intend to modify the codebase directly.
 
 ## Requirements
 
-| | Docker route | Python route |
+| Requirement | Docker route | Python route |
 | --- | --- | --- |
 | Runtime | Docker 20.10+ and Compose v2 | Python **3.11 or 3.12** |
-| RAM | 2 GB minimum, 4 GB if you use background removal | same |
-| Disk | ~2 GB for the image; the `u2net` model adds ~180 MB on first use | same |
-| System libs | handled by the Dockerfile | `libgl1`, `libglib2.0-0` on Debian/Ubuntu for OpenCV |
+| RAM | 2 GB minimum, 4 GB with background removal | Same |
+| Disk | ~2 GB for the image; `u2net` adds ~180 MB on first use | Same |
+| System libs | Bundled in Dockerfile | `libgl1`, `libglib2.0-0` on Debian/Ubuntu for OpenCV |
 
-::: tip Which Python?
-CI tests 3.11 and 3.12, and the Docker image is built on `python:3.11-slim`. Newer versions may work but are not verified — several of the pinned scientific dependencies (`numba`, `llvmlite`, `onnxruntime`) lag behind the latest CPython release.
+::: tip Supported Python versions
+CI validates 3.11 and 3.12, and the Docker image is built on `python:3.11-slim`. Newer versions may work but are not officially verified because pinned scientific packages (`numba`, `llvmlite`, `onnxruntime`) frequently lag behind newer CPython releases.
 :::
 
-## Option 1 — Docker Compose (recommended)
+## Option 1: Docker Compose (recommended)
 
 ```bash
 git clone https://github.com/fabriziosalmi/brandkit.git
@@ -28,13 +28,13 @@ cd brandkit
 docker compose up -d --build
 ```
 
-Open <http://localhost:8000>. That is it.
+Access the application at <http://localhost:8000>.
 
-The compose file mounts `./static/uploads` into the container, so generated assets survive a restart — and so does everything anyone else generated. See [Privacy](/privacy) before you leave it running.
+The Compose file mounts `./static/uploads` into the container, ensuring generated assets persist across restarts. Consult [Privacy](/privacy) prior to shared deployment.
 
-Full details, including the port and volume layout, are in [Running with Docker](/guide/docker).
+For detailed configuration instructions, see [Running with Docker](/guide/docker).
 
-## Option 2 — Local Python environment
+## Option 2: Local Python environment
 
 ```bash
 git clone https://github.com/fabriziosalmi/brandkit.git
@@ -51,8 +51,8 @@ python app.py
 
 The development server binds to `127.0.0.1:8000`.
 
-::: warning `python app.py` is the development server
-Werkzeug's built-in server is single-threaded and not hardened for public traffic. For anything beyond your laptop, use `entrypoint.sh`, which prefers gunicorn:
+::: warning Development server note
+Werkzeug's built-in server is single-threaded and intended for development only. For production or networked instances, execute `entrypoint.sh` with Gunicorn:
 
 ```bash
 pip install gunicorn
@@ -60,57 +60,56 @@ PORT=8000 ./entrypoint.sh
 ```
 :::
 
-### Background removal is optional but heavy
+### Background removal dependencies
 
-`rembg` and `onnxruntime` are in `requirements.txt`, so a normal install pulls them in. On first use, rembg downloads the `u2net` ONNX model (~180 MB) into `~/.u2net/`. That first request will be slow — a minute or more on a cold cache — and the app needs outbound network access to fetch it.
+`rembg` and `onnxruntime` are included in `requirements.txt`. On initial invocation, `rembg` fetches the `u2net` ONNX model (~180 MB) to `~/.u2net/`. This download requires outbound network connectivity and extends processing time on the first run.
 
-If you do not want background removal at all, remove `rembg` and `onnxruntime` from `requirements.txt` before installing. The app detects their absence at import time, logs it, and simply hides the feature:
+If background removal is unnecessary, remove `rembg` and `onnxruntime` from `requirements.txt` prior to installation. The application detects their absence at startup and hides the corresponding interface controls:
 
 ```
 Background removal (rembg) not available. Install with: pip install rembg
 ```
 
-Everything else keeps working.
+All other image transformation features remain functional.
 
-### Pre-seeding the model for offline installs
+### Pre-seeding models for offline deployment
 
-If the machine that runs BrandKit has no outbound internet, download the model elsewhere and copy it in:
+For environments lacking outbound internet connectivity, pre-download the model:
 
 ```bash
-# on a machine with network access
+# On a machine with internet access:
 python -c "from rembg import new_session; new_session('u2net')"
-# then copy ~/.u2net/u2net.onnx to the target host's ~/.u2net/
+# Copy ~/.u2net/u2net.onnx to the target host under ~/.u2net/
 ```
 
-For Docker, mount it: `-v $HOME/.u2net:/root/.u2net`.
+When using Docker, mount the cached directory: `-v $HOME/.u2net:/root/.u2net`.
 
-## Verify the install
+## Verification
 
 ```bash
-# 1. The page loads
+# 1. UI accessibility
 curl -sf http://localhost:8000/ >/dev/null && echo "UI ok"
 
-# 2. The format catalogue responds
+# 2. Format catalogue response
 curl -s http://localhost:8000/format-info | head -c 200
 
-# 3. CSRF protection is live — this must be rejected
+# 3. CSRF enforcement (must return HTTP 400 without token)
 curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:8000/upload
-# expect 400
 ```
 
-A `400` on that last call is the correct answer: it means Flask-WTF rejected a POST with no CSRF token.
+An HTTP 400 response on unauthenticated POST requests confirms active CSRF protection.
 
-## Where files land
+## File locations
 
 | Path | Contents |
 | --- | --- |
-| `static/uploads/` | uploaded originals and generated assets, plus the ZIP archives |
-| `static/uploads/cache/` | resized intermediates keyed by content hash |
-| `config.json` | the format catalogue and preprocessing defaults you can edit |
-| `~/.u2net/` | rembg's downloaded ONNX models |
+| `static/uploads/` | Uploaded originals, generated output formats, and ZIP archives |
+| `static/uploads/cache/` | Cached resized intermediates indexed by content hash |
+| `config.json` | Editable format catalogue and preprocessing defaults |
+| `~/.u2net/` | Downloaded ONNX model weights for rembg |
 
 ## Next steps
 
-- [The generation workflow](/guide/usage) — what every control does
-- [Configuration](/reference/configuration) — add your own formats
-- [Deployment](/guide/deployment) — put it behind a reverse proxy
+- [The generation workflow](/guide/usage): operational parameters and controls
+- [Configuration](/reference/configuration): format definitions and defaults
+- [Deployment](/guide/deployment): reverse proxy setup and network hardening

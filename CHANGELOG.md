@@ -43,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.0] - 2024
 
 ### Added
-- 🎯 AI-powered background removal with rembg library
+- Neural background removal with rembg library
 - Multiple AI model selection (Auto, Person/Portrait, Object/Product, Anime/Illustration)
 - Background color replacement options (transparent, white, black, gray, custom colors)
 - Edge smoothing for professional background removal results

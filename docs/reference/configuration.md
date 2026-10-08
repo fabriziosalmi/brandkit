@@ -1,15 +1,15 @@
 ---
 title: Configuration
-description: The config.json schema — formats, categories, output types and preprocessing defaults.
+description: Schema specification for config.json covering formats, categories, encodings, and preprocessing defaults.
 ---
 
 # Configuration
 
-All of BrandKit's tunable behaviour lives in one file at the repository root: **`config.json`**. It is read on every request by `load_config()`, so **changes take effect without a restart** — though a restart is still the safest way to be sure, since a syntax error is silently swallowed.
+Tunable application parameters reside in a single root file: **`config.json`**. The configuration is evaluated by `load_config()`, allowing modifications to take effect immediately. Restarting the service confirms that schema updates are parsed without syntax errors.
 
-## The merge rule (read this first)
+## The merge rule
 
-`config.json` does **not replace** the built-in defaults. It is merged over them, one level deep:
+`config.json` does **not replace** built-in defaults; it merges on top of them:
 
 ```python
 # Custom formats and categories are validated (positive integer dimensions)
@@ -19,28 +19,28 @@ for fmt_name, fmt_spec in file_config.get('formats', {}).items():
         config['formats'][fmt_name] = fmt_spec
 ```
 
-Two consequences that surprise everyone at least once:
+Key operational implications:
 
-1. **You cannot delete a built-in format by omitting it from `config.json`.** The 26 formats hard-coded in `DEFAULT_CONFIG` are always present. `config.json` adds to them and overrides same-named keys. That is why the effective catalogue is 45 formats, not the 32 in the file.
-2. **`format_categories` is merged by category name.** Supplying `"Social Media": [...]` replaces that category's whole list, but categories you do not mention keep their built-in contents.
+1. **Built-in formats cannot be removed by omission:** The base formats defined in `DEFAULT_CONFIG` remain active. Entries in `config.json` add new specifications or override existing keys with identical names.
+2. **Category lists merge by category identifier:** Specifying `"Social Media": [...]` replaces that category array entirely, while unspecified categories retain their built-in defaults.
 
-If you genuinely need a smaller catalogue, edit `DEFAULT_CONFIG` in `app.py`.
+To restrict output options to an exclusive custom subset, adjust `DEFAULT_CONFIG` in `app.py`.
 
-## Failure behaviour
+## Failure handling
 
-| Situation | What happens |
+| Condition | Behavior |
 | --- | --- |
-| `config.json` missing | `logger.warning("Configuration file '...' not found...")` — defaults only |
-| `config.json` is invalid JSON | `logger.error("Configuration file '...' is not valid JSON...")` — **defaults only, request still succeeds** |
-| A format entry lacks `width` or `height` | that format fails at render time, others continue |
+| `config.json` missing | `logger.warning(...)`: falls back to built-in presets |
+| `config.json` invalid JSON | `logger.error(...)`: falls back to built-in presets without interrupting requests |
+| Format spec missing dimensions | The invalid format fails during rendering; remaining formats proceed |
 
-The second row is the dangerous one: a broken edit does not produce an error page, it produces a catalogue that quietly reverts. Validate before you trust it:
+Validate custom configurations before deploying:
 
 ```bash
 python3 -m json.tool config.json > /dev/null && echo "valid JSON"
 ```
 
-## Top-level shape
+## Top-level structure
 
 ```json
 {
@@ -53,7 +53,7 @@ python3 -m json.tool config.json > /dev/null && echo "valid JSON"
 
 ## `formats`
 
-A map of format key → canvas definition.
+Mapping of format keys to canvas dimensions:
 
 ```json
 "formats": {
@@ -65,21 +65,21 @@ A map of format key → canvas definition.
 }
 ```
 
-| Field | Type | Required | Notes |
+| Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `width` | integer | yes | target canvas width in pixels |
-| `height` | integer | yes | target canvas height in pixels |
-| `description` | string | no | shown next to the checkbox in the UI |
+| `width` | integer | Yes | Target canvas width in pixels |
+| `height` | integer | Yes | Target canvas height in pixels |
+| `description` | string | No | Label rendered alongside the UI checkbox |
 
-The **key** is what appears in generated filenames and in the `selected_formats` form field. Use lowercase with underscores; it is not sanitised for you, and it ends up in a path.
+Format keys determine output filenames and form payload values. Use lowercase alphanumeric characters and underscores.
 
-::: warning `favicon` is special-cased
-The `favicon` key triggers `create_favicon()`, which ignores your `width`/`height` and always writes a multi-resolution `.ico` containing 16×16, 32×32 and 48×48. Renaming the key disables ICO generation entirely.
+::: warning `favicon` key behavior
+The `favicon` key invokes `create_favicon()`, generating a multi-resolution `.ico` container with 16×16, 32×32, and 48×48 dimensions. Renaming the key disables `.ico` bundling.
 :::
 
 ## `format_categories`
 
-A map of display name → list of format keys. Drives the grouping in the UI.
+Mapping of category titles to format keys:
 
 ```json
 "format_categories": {
@@ -88,7 +88,7 @@ A map of display name → list of format keys. Drives the grouping in the UI.
 }
 ```
 
-A format key that appears in no category is still generated and still findable through the search box — it simply has no group heading. A category listing a key that does not exist in `formats` is skipped silently.
+Format keys excluded from categories remain available via search filters. Category references to undefined format keys are skipped during rendering.
 
 ## `output_formats`
 
@@ -96,11 +96,11 @@ A format key that appears in no category is still generated and still findable t
 "output_formats": ["png", "jpg", "webp", "ico"]
 ```
 
-The list of encodings offered in the UI. Only these four values are implemented; adding a fifth string does nothing useful. Removing one hides it from the interface.
+Controls the active encoding options presented in the UI.
 
 ## `preprocessing_options`
 
-The default state of every control in the preprocessing panel. All 25 keys, with the shipped defaults:
+Sets default values for image processing controls across 25 keys:
 
 ```json
 "preprocessing_options": {
@@ -132,17 +132,13 @@ The default state of every control in the preprocessing panel. All 25 keys, with
 }
 ```
 
-What each one does is documented in [Image preprocessing](/guide/preprocessing).
+Consult [Image preprocessing](/guide/preprocessing) for detailed parameter interactions.
 
-::: tip Set your own watermark
-`watermark_text` is the one people change most often. Set it to your studio name and it becomes the default for every generation on that instance.
-:::
+Runtime parameters such as `background_removal_method`, `smooth_radius`, `noise_strength`, `crop_padding`, `shadow_offset_x`, `shadow_offset_y`, and `enhance_quality` use internal fallbacks defined in `app.py`.
 
-Note that a handful of runtime options accepted by `POST /upload` — `background_removal_method`, `smooth_radius`, `noise_strength`, `crop_padding`, `shadow_offset_x`, `shadow_offset_y`, `enhance_quality` — have hard-coded fallbacks in `app.py` and are **not** read from `config.json`. Adding them to the file has no effect.
+## Configuration example
 
-## A complete worked example
-
-Adding an email signature banner and a 3:2 case-study image, and changing the default watermark:
+Customizing signature banners and updating default watermark text:
 
 ```json
 {
@@ -164,15 +160,15 @@ Adding an email signature banner and a 3:2 case-study image, and changing the de
 }
 ```
 
-Because of the merge rule, this file alone is enough — every other format, category and default is inherited.
+Due to the merge rule, undefined formats and categories retain their standard defaults.
 
-Validate, then reload:
+Validate and apply changes:
 
 ```bash
 python3 -m json.tool config.json > /dev/null && docker compose restart brandkit
 ```
 
-## See also
+## Related documentation
 
-- [Environment variables](/reference/environment) — the settings that are *not* in `config.json`
-- [Format catalogue](/reference/format-catalogue) — the effective merged result
+- [Environment variables](/reference/environment): runtime and deployment flags
+- [Format catalogue](/reference/format-catalogue): complete list of default dimensions

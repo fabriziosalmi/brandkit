@@ -1,6 +1,6 @@
 ---
 title: Troubleshooting
-description: Symptoms, causes and fixes for the problems people actually hit running BrandKit.
+description: Operational diagnostics, common error states, and resolutions in BrandKit.
 ---
 
 # Troubleshooting
@@ -8,103 +8,102 @@ description: Symptoms, causes and fixes for the problems people actually hit run
 ## Quick triage
 
 ```bash
-# Is it up?
+# Verify HTTP status
 curl -sf http://localhost:8000/ >/dev/null && echo UP || echo DOWN
 
-# What did it say at startup?
+# Review startup logs
 docker compose logs --tail=50 brandkit
 
-# Is CSRF live? (must return 400)
+# Validate CSRF enforcement (must return HTTP 400)
 curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:8000/upload
 
-# Is the catalogue loading?
+# Check format catalogue payload
 curl -s http://localhost:8000/format-info | python3 -m json.tool | head -20
 ```
 
-## Startup
+## Startup issues
 
 ### `ModuleNotFoundError: No module named 'rembg'`
 
-Not fatal. The app catches it and disables background removal:
+Non-fatal dependency warning. The application catches the exception and disables background removal:
 
 ```
 Background removal (rembg) not available. Install with: pip install rembg
 ```
 
-Install it (`pip install rembg onnxruntime`) or accept the loss of the feature.
+Install the optional package (`pip install rembg onnxruntime`) or proceed with base image processing.
 
 ### `ImportError: libGL.so.1: cannot open shared object file`
 
-OpenCV needs system libraries that a bare `pip install` does not provide.
+OpenCV requires native system runtime libraries:
 
 ```bash
 # Debian / Ubuntu
 sudo apt-get install -y libgl1 libglib2.0-0
 ```
 
-The Docker image already installs these. If you see it in a container, you have changed the base image.
+The standard Docker image includes these libraries by default.
 
 ### `Address already in use`
 
-Something else holds port 8000.
+Port 8000 is occupied by another process:
 
 ```bash
 lsof -i :8000                 # macOS / Linux
-docker compose down           # if it is an old BrandKit container
+docker compose down           # Terminate previous containers
 ```
 
-Or move the host port: `"8001:8000"` in `docker-compose.yml`.
+Alternatively, map a distinct host port in `docker-compose.yml` (e.g. `"8001:8000"`).
 
 ### `Warning: config.json not found. Using default configuration.`
 
-You started the app from a directory that is not the repo root. `load_config()` opens `config.json` by relative path. `cd` into the project first.
+The application process was launched from outside the repository root directory. Launch `app.py` from the root directory containing `config.json`.
 
 ### `Error: config.json is not valid JSON. Using default configuration.`
 
-Your edit broke the file. Validate it:
+The configuration file contains syntax errors. Validate with:
 
 ```bash
 python3 -m json.tool config.json > /dev/null && echo "valid"
 ```
 
-The app falls back to built-in defaults rather than crashing, which is why the symptom is "my new format vanished" rather than an error page.
+The application defaults to internal presets if the JSON file cannot be parsed.
 
-## Uploads
+## Upload issues
 
-### `400 Bad Request — The CSRF token is missing`
+### `400 Bad Request: The CSRF token is missing`
 
-Expected if you are calling `/upload` with `curl` or a script. Every `POST` needs a valid CSRF token; see [HTTP endpoints](/reference/http-api#authentication-and-csrf) for how to obtain one.
+Expected behavior when invoking `/upload` without an active session CSRF token. Refer to [HTTP endpoints](/reference/http-api#authentication-and-csrf).
 
-If it happens **in the browser**, the usual causes are all the same root problem — no stable [`BRANDKIT_SECRET_KEY`](/reference/environment#brandkit-secret-key):
+If encountered in the browser, verify:
 
-- more than one gunicorn worker, each having generated its own ephemeral key
-- the app restarted between page load and submit, regenerating the key
-- (unrelated) cookies blocked for the origin
-
-Check the startup log for `No BRANDKIT_SECRET_KEY set`. Setting it fixes the first two.
+- Multiple Gunicorn workers are running without a shared [`BRANDKIT_SECRET_KEY`](/reference/environment#brandkit-secret-key)
+- Application was restarted between page render and submission
+- Browser cookies are blocked for the application origin
 
 ### `413 Request Entity Too Large`
 
-The file is over the limit. Two limits are in play:
+The uploaded file exceeds the configured size ceiling. Check two limits:
 
 ```bash
-BRANDKIT_MAX_UPLOAD_MB=32 docker compose up -d      # the app's limit
+BRANDKIT_MAX_UPLOAD_MB=32 docker compose up -d
 ```
 
-and your reverse proxy's own body limit (`client_max_body_size` in Nginx, `request_body max_size` in Caddy), which must be at least as large. If Flask never logs the request, the proxy rejected it.
+Ensure reverse proxy body limits (`client_max_body_size` in Nginx, `request_body max_size` in Caddy) equal or exceed this value.
 
 ### `File type not allowed`
 
-Only `png`, `jpg`, `jpeg`, `gif`, `webp` are accepted, matched on the extension after the last dot, case-insensitively. Rename or convert:
+Accepted extensions: `png`, `jpg`, `jpeg`, `gif`, `webp`. Files are matched on the final extension component case-insensitively.
+
+Rasterize vector sources prior to upload:
 
 ```bash
-# SVG is not supported — rasterise first
 rsvg-convert -w 2048 logo.svg -o logo.png
 ```
 
 ### `Invalid image file`
 
-The extension was allowed but Pillow could not decode the contents — a corrupt file, or something misnamed. The upload is deleted and the request fails. Verify locally:
+Pillow could not decode the uploaded buffer (corrupted file or invalid format signature). Verify integrity locally:
 
 ```bash
 python3 -c "from PIL import Image; Image.open('yourfile.png').verify(); print('ok')"
@@ -112,67 +111,65 @@ python3 -c "from PIL import Image; Image.open('yourfile.png').verify(); print('o
 
 ### `429 Too Many Requests`
 
-Rate limiting: 5 uploads/minute, 50 requests/hour, 200/day per IP. Wait it out, or adjust the decorators in `app.py` for a trusted deployment.
+Rate limiting threshold reached: 5 uploads/minute, 50 requests/hour, 200/day per IP.
 
-## Generation
+## Generation issues
 
-### It hangs on the first background removal
+### Initial background removal latency
 
-rembg is downloading a ~180 MB ONNX model. Watch for network activity and check `~/.u2net/`. Subsequent runs are fast. Pre-seed the directory for offline hosts — see [Background removal](/guide/background-removal#choosing-a-model).
+`rembg` downloads the ~180 MB ONNX model upon first invocation. Subsequent runs execute locally against cached weights in `~/.u2net/`.
 
-### The container is killed mid-generation (exit 137)
+### Container exit 137 (OOM killed)
 
-Out of memory. ONNX Runtime plus a large image plus variations mode will do it.
+System killed the container due to memory exhaustion. Mitigations:
 
 ```bash
-docker stats brandkit          # watch it climb
+docker stats brandkit          # Monitor live memory utilization
 ```
 
-Fixes, in order of effectiveness: turn off variations mode, use a smaller source, lower `BRANDKIT_MAX_UPLOAD_MB`, raise the container memory limit.
+Disable variations mode, ingest a lower-resolution source, reduce `BRANDKIT_MAX_UPLOAD_MB`, or increase container RAM allocations.
 
-### `504 Gateway Timeout` from the proxy
+### `504 Gateway Timeout` from reverse proxy
 
-A long generation outran the proxy's read timeout. Raise it to 300 s — `proxy_read_timeout 300s;` in Nginx. See [Deployment](/guide/deployment#nginx).
+Pipeline execution exceeded the upstream proxy timeout. Increase timeout values (e.g. `proxy_read_timeout 300s;` in Nginx).
 
-### The ICO file did not appear
+### ICO asset not produced
 
-`ico` is only produced when the `favicon` format is also selected. If you tick `ico` without `favicon`, it is silently dropped from the output types.
+The `.ico` encoding is generated exclusively when the `favicon` canvas format is selected.
 
-### Transparency was lost
+### Flattened background transparency
 
-You selected `jpg`, which has no alpha channel. Use PNG or WebP.
+JPEG encodings discard the alpha channel. Select PNG or WebP to retain transparency.
 
-### The logo looks tiny in every format
+### Subject appears disproportionately small
 
-Your source has a lot of empty canvas around the mark. Turn on **auto-crop** with 10–20 px of padding — it trims once and every format benefits.
+The source contains excessive transparent or solid padding. Enable **auto-crop** with 10-20 px padding to trim perimeter space uniformly.
 
-### Generation is slow every single time
+### Repeated cache misses
 
-The disk cache is missing. Either the preprocessing options changed between runs (any change invalidates every entry), or `static/uploads/cache/` is not writable:
+Ensure `static/uploads/cache/` has write permissions for the container process:
 
 ```bash
 ls -la static/uploads/
 chmod -R u+rwX static/uploads/
 ```
 
-In Docker, check that the bind-mounted host directory is writable by the container user.
+Modifying any preprocessing slider or toggle generates a distinct cache key.
 
-## Disk
+## Disk management
 
-### `static/uploads/` has grown to gigabytes
+### Upload storage growth
 
-Check whether the sweep is running at all — the startup log should say:
+Confirm cleanup worker status in startup logs:
 
 ```
 Scheduled cleanup started: every 1.0h, deleting files older than 24.0h
 ```
 
-If it says `Scheduled cleanup disabled via BRANDKIT_CLEANUP_ENABLED`, that is why. If it is running but the directory is still large, the retention window is simply longer than your throughput; lower `BRANDKIT_RETENTION_HOURS`. Details in [Performance & caching](/guide/performance#file-cleanup).
+If throughput is high, shorten the retention window via `BRANDKIT_RETENTION_HOURS=1`. Consult [Performance & caching](/guide/performance#file-cleanup).
 
-Note the sweep only runs while the container is up. A stopped container leaves the bind-mounted directory untouched.
+## Support & contributions
 
-## Still stuck
-
-- Search the [issue tracker](https://github.com/fabriziosalmi/brandkit/issues)
-- Open a [bug report](https://github.com/fabriziosalmi/brandkit/issues/new?template=bug_report.md) with the startup log, your Python or Docker version, and the exact steps
-- For anything security-sensitive, use the [security policy](/security#reporting-a-vulnerability) instead of a public issue
+- Review existing reports on the [issue tracker](https://github.com/fabriziosalmi/brandkit/issues)
+- Open a [bug report](https://github.com/fabriziosalmi/brandkit/issues/new?template=bug_report.md) including startup logs and environment details
+- Report security concerns via the [security policy](/security#reporting-a-vulnerability)

@@ -94,7 +94,7 @@ export default defineConfig({
   head: [
     ['link', { rel: 'icon', href: BASE + 'favicon.svg', type: 'image/svg+xml' }],
     ['link', { rel: 'apple-touch-icon', sizes: '180x180', href: BASE + 'apple-touch-icon.png' }],
-    ['meta', { name: 'theme-color', content: '#3b82f6' }],
+    ['meta', { name: 'theme-color', content: '#09090b' }],
     ['meta', { name: 'author', content: 'Fabrizio Salmi' }],
     ['meta', { name: 'robots', content: 'index, follow, max-image-preview:large' }],
     ['meta', { property: 'og:type', content: 'website' }],

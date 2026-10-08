@@ -5,7 +5,7 @@ description: Build, run, persist and update BrandKit with Docker and Docker Comp
 
 # Running with Docker
 
-Docker is the supported deployment path. The image bundles the OpenCV and Pillow system libraries that are tedious to install by hand.
+Docker is the supported deployment path. The image bundles OpenCV and Pillow system libraries required for processing.
 
 ## Quick start
 
@@ -15,15 +15,15 @@ cd brandkit
 docker compose up -d --build
 ```
 
-BrandKit is now on <http://localhost:8000>.
+BrandKit is available on <http://localhost:8000>.
 
 ```bash
 docker compose logs -f brandkit   # follow logs
 docker compose down               # stop
-docker compose down -v            # stop and drop volumes
+docker compose down -v            # stop and remove volumes
 ```
 
-## What the compose file does
+## Docker Compose configuration
 
 ```yaml
 services:
@@ -35,15 +35,15 @@ services:
     volumes:
       - ./static/uploads:/app/static/uploads
     environment:
-      - FLASK_ENV=production        # legacy, no longer does anything
+      - FLASK_ENV=production        # legacy variable
     restart: unless-stopped
 ```
 
-Three things worth knowing:
+Key configuration details:
 
-- **The bind mount is a bind mount, not a named volume.** `./static/uploads` on your host *is* the app's upload directory. Everything anyone generates lands in your working copy. Add it to `.gitignore` (it already is) and read [Privacy](/privacy).
-- **`FLASK_ENV=production` is now a no-op** and can be dropped. It used to gate the cleanup thread; cleanup is controlled by the [`BRANDKIT_CLEANUP_*` variables](/reference/environment#the-cleanup-variables) and runs under gunicorn regardless.
-- **The port is fixed at 8000 inside the container.** Change the left-hand side only: `"127.0.0.1:9000:8000"` to bind on a different host port and stop exposing it on every interface.
+- **Upload volume:** `./static/uploads` on the host is the container upload directory. Generated assets are stored directly in this directory.
+- **Port binding:** The internal container port is 8000. To bind specifically to host loopback, specify `"127.0.0.1:8000:8000"`.
+- **Cleanup handling:** Background cleanup runs under Gunicorn and is configured via [`BRANDKIT_CLEANUP_*` environment variables](/reference/environment#the-cleanup-variables).
 
 ## Running without Compose
 
@@ -60,28 +60,26 @@ docker run -d \
   brandkit
 ```
 
-The second volume caches rembg's ONNX models on the host, so rebuilding the image does not re-download ~180 MB.
+Mounting `$HOME/.u2net` persists downloaded ONNX models across container rebuilds.
 
-## The image
+## Image specification
 
-`Dockerfile` starts from `python:3.11-slim` and installs the native dependencies for rembg and OpenCV (`libgl1`, `libglib2.0-0`, `libjpeg-dev`, `zlib1g-dev`, `libpng-dev`, `libwebp-dev`, and the OpenCV core/imgproc headers). It then installs `rembg`, `onnxruntime`, `opencv-python-headless` and `numpy`, followed by everything in `requirements.txt`.
+The `Dockerfile` builds on `python:3.11-slim` and installs system dependencies for rembg and OpenCV (`libgl1`, `libglib2.0-0`, `libjpeg-dev`, `zlib1g-dev`, `libpng-dev`, `libwebp-dev`, and OpenCV development headers). It then installs `rembg`, `onnxruntime`, `opencv-python-headless`, `numpy`, and dependencies listed in `requirements.txt`.
 
-Expect a build of several minutes and a final image around 2 GB. That is the cost of shipping ONNX Runtime and the scientific Python stack.
+Initial builds take several minutes, resulting in an image size of approximately 2 GB due to the ONNX Runtime and scientific Python stack.
 
-## The entrypoint
+## Entrypoint process
 
-`CMD ["bash", "entrypoint.sh"]`. The script picks a server in this order:
+The container executes `entrypoint.sh`, selecting a WSGI runner in priority order:
 
-1. **gunicorn**, if it is on `PATH` — `gunicorn --bind 0.0.0.0:$PORT --worker-tmp-dir /dev/shm app:app`
-2. **`flask run`**, if the CLI is present *and* `FLASK_APP` is set
-3. **a Python fallback** that imports `app.py` and calls `app.run(host="0.0.0.0")`
+1. **Gunicorn** (when available on `PATH`): `gunicorn --bind 0.0.0.0:$PORT --worker-tmp-dir /dev/shm app:app`
+2. **Flask CLI** (when `FLASK_APP` is set): `flask run`
+3. **Python runtime**: imports `app.py` and initiates `app.run(host="0.0.0.0")`
 
-It also creates `static/uploads` if it is missing and honours `PORT` (default `8000`).
+The entrypoint creates `static/uploads` if absent and respects the `PORT` environment variable (default: `8000`).
 
-::: warning Set a secret key before adding workers
-The entrypoint does not pass `--workers`, so gunicorn's default of **1** applies. If you raise it, set [`BRANDKIT_SECRET_KEY`](/reference/environment#brandkit-secret-key) first — without it each worker generates its own signing key and CSRF tokens minted by one worker are rejected by the next.
-
-With several workers you probably also want `BRANDKIT_CLEANUP_ENABLED=false` on all but one, so a single process owns the file sweep.
+::: warning Configure secret key before scaling workers
+The default configuration runs 1 Gunicorn worker. Before increasing worker count, configure [`BRANDKIT_SECRET_KEY`](/reference/environment#brandkit-secret-key) to ensure consistent CSRF session verification across workers.
 :::
 
 ## Updating
@@ -92,11 +90,11 @@ git pull
 docker compose up -d --build
 ```
 
-Uploads in the bind mount survive. If you changed `config.json`, your changes survive too — it is copied into the image at build time but you are running a fresh copy from the repo.
+Upload directories in the bind mount persist across rebuilds.
 
 ## Health check
 
-There is no dedicated `/healthz` endpoint. Use the root page or the format catalogue:
+The `/format-info` endpoint serves as a lightweight HTTP GET probe without requiring CSRF authentication:
 
 ```yaml
     healthcheck:
@@ -108,11 +106,9 @@ There is no dedicated `/healthz` endpoint. Use the root page or the format catal
       start_period: 40s
 ```
 
-`/format-info` is a `GET`, needs no CSRF token, does no image work, and returns JSON — a good liveness probe.
-
 ## Resource limits
 
-Background removal on a large image can allocate a lot of memory. If you are running on a small VPS, cap it explicitly:
+Background removal on high-resolution images can allocate significant RAM. On resource-constrained hosts, specify explicit limits:
 
 ```yaml
     deploy:
@@ -121,4 +117,4 @@ Background removal on a large image can allocate a lot of memory. If you are run
           memory: 4G
 ```
 
-and lower the upload ceiling with `BRANDKIT_MAX_UPLOAD_MB`. See [Environment variables](/reference/environment).
+Configure `BRANDKIT_MAX_UPLOAD_MB` accordingly. See [Environment variables](/reference/environment).

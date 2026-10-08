@@ -1,58 +1,62 @@
 ---
 title: Keyboard shortcuts
-description: Every keyboard shortcut in the BrandKit interface.
+description: Complete keyboard shortcut reference for the BrandKit interface.
 ---
 
 # Keyboard shortcuts
 
-Press <kbd>Shift</kbd>+<kbd>?</kbd> anywhere in the app to bring up this list in a dialog.
+Press <kbd>Shift</kbd>+<kbd>?</kbd> or <kbd>⌘</kbd>+<kbd>K</kbd> anywhere in the application to display the shortcuts dialog.
 
-| Shortcut | Action |
-| --- | --- |
-| <kbd>Space</kbd> | Open the file selector, when the upload area has focus |
-| <kbd>Ctrl</kbd>+<kbd>Enter</kbd> / <kbd>⌘</kbd>+<kbd>Enter</kbd> | Generate the brand kit |
-| <kbd>Esc</kbd> | Reset the form, cancel processing, or close a dialog |
-| <kbd>Shift</kbd>+<kbd>?</kbd> | Toggle the shortcuts dialog |
+| Shortcut | Context | Action |
+| --- | --- | --- |
+| <kbd>⌘</kbd>+<kbd>V</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd> | Global | Ingest master image from system clipboard |
+| <kbd>Space</kbd> | Drop zone focused | Open native file selector |
+| <kbd>⌘</kbd>+<kbd>Enter</kbd> / <kbd>Ctrl</kbd>+<kbd>Enter</kbd> | Global | Trigger generation pipeline |
+| <kbd>T</kbd> | Global (outside inputs) | Cycle color theme (System / Dark / Light) |
+| <kbd>Esc</kbd> | Global | Cancel processing, dismiss modal, or reset form |
+| <kbd>⌘</kbd>+<kbd>K</kbd> / <kbd>Shift</kbd>+<kbd>?</kbd> | Global | Toggle shortcuts modal |
 
-## Details
+## Detailed behavior
 
-### <kbd>Space</kbd> — file selector
+### Clipboard ingestion (<kbd>⌘</kbd>+<kbd>V</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd>)
 
-Opens the native file picker when the drop zone has keyboard focus. Reach it with <kbd>Tab</kbd> from the top of the page.
+Ingests PNG or JPEG image data directly from the OS clipboard into the master staging area, triggering metadata analysis and live telemetry extraction immediately.
 
-### <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Enter</kbd> — generate
+### File selection (<kbd>Space</kbd>)
 
-Submits the form. It only fires when all of these are true:
+Opens the OS file picker dialog when the master upload area has keyboard focus. Navigate to the drop zone using <kbd>Tab</kbd>.
 
-- a file has been uploaded
-- at least one format is selected
-- at least one output type is selected
-- a generation is not already running
+### Pipeline execution (<kbd>⌘</kbd>+<kbd>Enter</kbd> / <kbd>Ctrl</kbd>+<kbd>Enter</kbd>)
 
-If nothing happens, one of those four is not satisfied.
+Initiates batch generation when the following preconditions are met:
 
-### <kbd>Esc</kbd> — the universal back-out
+1. Master image is loaded in staging
+2. At least one canvas format is selected
+3. At least one output encoding is checked
+4. An active generation cycle is not already running
 
-Context-sensitive, in this priority order:
+### Color theme cycle (<kbd>T</kbd>)
 
-1. Shortcuts dialog open → close it
-2. Format search active → clear the query
-3. Processing in progress → cancel it
-4. Results shown → reset the form and start over
+Cycles theme preferences between System, Dark, and Light mode without opening a settings panel. Keystrokes are ignored when focused within text inputs or search fields.
 
-### <kbd>Shift</kbd>+<kbd>?</kbd> — help
+### Escape handling (<kbd>Esc</kbd>)
 
-Toggles the shortcuts dialog. <kbd>Esc</kbd> also closes it.
+Evaluates application state contextually in priority order:
 
-## Accessibility
+1. Close shortcuts dialog if open
+2. Clear format filter query if search input is populated
+3. Cancel running batch generation request
+4. Reset upload state and return to staging view
 
-The interface is built for keyboard-only operation:
+## Accessibility standards
 
-- every interactive element is reachable with <kbd>Tab</kbd>
-- focus is visible — a 2 px blue outline with 2 px of offset on links, buttons and inputs
-- controls carry ARIA labels for screen readers
-- `[x-cloak]` prevents un-initialised Alpine markup from flashing before hydration
+The interface is engineered for non-mouse operation:
 
-## Browser support
+- Every interactive control is sequenced in logical <kbd>Tab</kbd> order.
+- Focused states render high-contrast hairline focus rings.
+- Form inputs and status indicators provide semantic ARIA labels.
+- Synchronous inline scripts eliminate theme and layout shifts before Alpine.js hydration.
 
-Chrome/Chromium, Firefox, Safari and Edge, current versions. If a shortcut does not fire, check whether an extension or the browser itself has claimed the combination — <kbd>Ctrl</kbd>+<kbd>Enter</kbd> in particular is contested by some password managers.
+## Browser compatibility
+
+Tested across Chromium, Firefox, and Safari on macOS and Linux. If a shortcut conflicts with browser or system-level intercepts (e.g. extension shortcuts), clicking the corresponding interface control remains functional.

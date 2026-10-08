@@ -1,97 +1,96 @@
 ---
 title: The generation workflow
-description: What every control in the BrandKit interface does, in the order you meet it.
+description: Sequential guide to BrandKit controls, parameters, and asset generation.
 ---
 
 # The generation workflow
 
-The whole app is one page. This is what each part of it does, top to bottom.
+BrandKit operates as a single-page interface organized into logical pipeline stages:
 
-## 1. Upload a source image
+## 1. Master image ingestion
 
-Drag an image onto the drop zone, or click it and pick a file. With the drop zone focused, <kbd>Space</kbd> opens the file selector.
+Drag an image into the upload area, click to browse, or paste directly from the clipboard via <kbd>⌘+V</kbd> / <kbd>Ctrl+V</kbd>. With the drop area focused, pressing <kbd>Space</kbd> opens the native file selector.
 
-**Accepted:** `png`, `jpg`, `jpeg`, `gif`, `webp`.
-**Size limit:** 16 MB by default — change it with [`BRANDKIT_MAX_UPLOAD_MB`](/reference/environment).
+**Supported formats:** `png`, `jpg`, `jpeg`, `gif`, `webp`.
+**Size ceiling:** 16 MB by default; configure via [`BRANDKIT_MAX_UPLOAD_MB`](/reference/environment).
 
-### Pick the right source
+### Source image recommendations
 
-Everything downstream is a resize of what you upload, and BrandKit does not upscale intelligently. Give it the largest, cleanest version you have:
+Because all downstream targets scale from the ingested master, optimal results require clean input:
 
-- **A square or near-square PNG with transparency** is the ideal input. It composites cleanly onto any background and crops well into both landscape and portrait canvases.
-- **At least 1024 px on the short edge** if you want the large formats (`square_large` at 2048×2048, `print_a4` at 2480×3508) to look sharp.
-- **Avoid pre-flattened JPEGs with a white box around the logo** — or turn on background removal to get rid of it.
+- **Square or near-square PNG with transparency:** Composites cleanly across contrasting backgrounds and formats.
+- **Minimum 1024 px along the shortest dimension:** Ensures large formats (`square_large` at 2048×2048, `print_a4` at 2480×3508) retain edge sharpness.
+- **Uncompressed transparent buffers:** When source logos reside on solid JPEG backgrounds, enable background removal in preprocessing.
 
-As soon as the file is accepted, two things happen automatically: **EXIF metadata is stripped** (unconditionally, by re-encoding through Pillow) and the image is **analysed** for its prominent colour and for the presence of a large white region.
+Upon file receipt, the engine strips EXIF metadata automatically and computes color telemetry, extracting dominant tones and inspecting boundary alpha distributions.
 
-## 2. Choose formats
+## 2. Format selection
 
-Formats are grouped into categories — Social Media, Website, Mobile, Branding, Web Application, E-commerce, Print, Business Documents, Publishing, General Purpose. Expand a category and tick what you need, or type in the search box to filter the whole catalogue by name.
+Formats are grouped into functional categories: Social Media, Website, Mobile, Branding, Web Application, E-commerce, Print, Business Documents, Publishing, and General Purpose. Use category toggles or the search filter to select target dimensions.
 
-Nothing ticked? BrandKit falls back to **every format in the catalogue**, which is 45 renders per output type. That is rarely what you want and it is slow. Tick deliberately.
+If no format is checked, BrandKit defaults to all 45 canvases. For faster runs, select target presets deliberately.
 
-The complete list of names and pixel dimensions is in the [format catalogue](/reference/format-catalogue).
+Pixel dimensions and aspect ratios are listed in the [format catalogue](/reference/format-catalogue).
 
-## 3. Choose output types
+## 3. Output encodings
 
-| Type | Transparency | Good for |
+| Encoding | Alpha channel | Primary use cases |
 | --- | --- | --- |
-| **PNG** | yes | logos, icons, anything that will sit on an unknown background |
-| **JPG** | no | photographic sources, large banners where file size matters |
-| **WebP** | yes | modern web delivery — smaller than PNG at equal quality |
-| **ICO** | yes | browser favicons only |
+| **PNG** | Yes | Marks, icons, UI components requiring transparency |
+| **JPG** | No | Photographic assets, large banners requiring compression |
+| **WebP** | Yes | Modern web delivery with optimized compression ratios |
+| **ICO** | Yes | Multi-resolution browser favicons |
 
-You can select several at once; each selected format is rendered into each selected type.
+Multiple encodings can be selected concurrently; each chosen format is rendered into every checked encoding.
 
-::: info ICO is coupled to the favicon format
-If you tick `ico` as an output type but do not tick the `favicon` format, BrandKit silently drops `ico` from the list. If that leaves no output types at all, it falls back to `png`. The ICO file itself is multi-resolution: 16×16, 32×32 and 48×48 are packed into one `.ico`.
+::: info ICO coupling
+The `.ico` encoding is generated exclusively when the `favicon` canvas format is selected. If `.ico` is selected without `favicon`, the format is omitted. The resulting ICO contains 16×16, 32×32, and 48×48 icon layers.
 :::
 
-## 4. Preprocessing (optional)
+## 4. Preprocessing parameters
 
-Everything in this panel is applied **once, to the source image**, before any format is rendered — so a hue shift or a watermark appears identically across the whole kit.
+Preprocessing adjustments are computed once against the master image buffer prior to format rendering, maintaining stylistic parity across all output assets.
 
-The controls are documented in detail in [Image preprocessing](/guide/preprocessing) and [Background removal](/guide/background-removal). The two settings that most often surprise people:
+For technical descriptions of all filters, refer to [Image preprocessing](/guide/preprocessing) and [Background removal](/guide/background-removal).
 
-- **Quality** (default `95`) applies to JPEG and WebP encoding. PNG ignores it.
-- **Strip metadata** (default off) removes the ICC profile and any remaining metadata from the *generated* files. Note that EXIF on the *uploaded* file is always stripped regardless of this switch.
+Key encoding options:
+- **Quality** (default `95`): Controls JPEG and WebP quantization matrices. Ignored for PNG.
+- **Strip metadata** (default disabled): Discards ICC color profiles and residual headers from output assets.
 
 ## 5. Smart background fill
 
-If the analysis in step 1 found a significant white area (more than 15% of the image is near-white), BrandKit offers to replace that white with the image's prominent colour, or with a radial gradient built from it.
-
-This is what turns a logo-on-white into a logo-on-brand-colour without you picking a hex value. It is a heuristic: check the previews.
+When color analysis detects that greater than 15% of the master bounds are near-white, the application offers automated solid or radial gradient compositing derived from extracted brand hues.
 
 ## 6. Variations mode
 
-Turning on **variations mode** renders each selected format ten times, once per preset:
+Enabling **variations mode** generates a matrix of ten distinct stylistic treatments per selected format:
 
-| Preset | Effect |
+| Variation | Transformation |
 | --- | --- |
-| `Original` | no change |
-| `Grayscale` | desaturated |
-| `B&W` | 1-bit black and white |
-| `Inverted` | colour-inverted |
-| `Hue_+60` / `Hue_-60` | hue rotated ±60° |
-| `Warm` / `Cool` | colour temperature ±40 |
-| `Grayscale_Contrast` | desaturated with contrast boost |
-| `Inverted_Blur` | inverted with a 2 px blur |
+| `Original` | Unmodified master |
+| `Grayscale` | Luminance desaturation |
+| `B&W` | 1-bit monochrome threshold |
+| `Inverted` | Color negative |
+| `Hue_+60` / `Hue_-60` | Hue rotation ±60° |
+| `Warm` / `Cool` | Color temperature shift ±40 |
+| `Grayscale_Contrast` | Desaturation with histogram equalization |
+| `Inverted_Blur` | Color negative with Gaussian blur |
 
-::: danger This multiplies your render count by ten
-Ten formats × two output types × variations mode = **200 images**. On a small machine that will take minutes and a lot of RAM. Use it to explore a direction on two or three formats, not to generate a deliverable.
+::: danger Multiplies total render volume
+Ten formats × two output types × variations mode produces 200 distinct files. Use variations mode selectively to test stylistic directions.
 :::
 
-## 7. Generate
+## 7. Pipeline execution
 
-Click **Generate**, or press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (<kbd>⌘</kbd>+<kbd>Enter</kbd> on macOS). The button is only active when you have a file, at least one format and at least one output type, and nothing is already running.
+Click **Generate** or press <kbd>⌘</kbd>+<kbd>Enter</kbd> / <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.
 
-Uploads are rate-limited to **5 per minute** per IP address, on top of a global default of 200/day and 50/hour. If you hit the limit you get a `429`; wait and retry.
+Uploads are rate-limited to 5 submissions per minute per IP address, within a global ceiling of 200 daily requests.
 
-## 8. Review and download
+## 8. Review and export
 
-The result grid shows a thumbnail per generated asset with its name and dimensions. Click any thumbnail to open the full-size file, or take the whole set as a ZIP.
+The results section displays interactive preview cards alongside a high-density data table with direct download links and pixel dimensions. The complete collection is packaged as a unified ZIP archive.
 
-Files are named predictably:
+Output files follow deterministic naming schemes:
 
 ```
 <source-basename>_<format>.<ext>
@@ -99,12 +98,12 @@ Files are named predictably:
 <source-basename>_favicon.ico
 ```
 
-so `acme-logo.png` rendered for `website` gives you `acme-logo_website.png`. The pixel dimensions are not in the name — look them up in the [format catalogue](/reference/format-catalogue), or read `dimensions` from the JSON response.
+Example: `acme-logo.png` rendered for the `website` canvas produces `acme-logo_website.png`.
 
-::: warning Generated files are publicly readable
-Assets are served out of `/static/uploads/`, which Flask exposes without authentication. Anyone who knows or guesses a filename can fetch it. On a public deployment, put an authenticating proxy in front of the whole app — see [Deployment](/guide/deployment) and [Privacy](/privacy).
+::: warning Public asset storage
+Files in `static/uploads/` are served without authentication. On public infrastructure, enforce authentication at the reverse proxy layer (see [Deployment](/guide/deployment) and [Privacy](/privacy)).
 :::
 
-## 9. Start over
+## 9. Navigation and reset
 
-<kbd>Esc</kbd> resets the form, cancels an in-flight operation, closes the help dialog or clears the format search, depending on what is on screen. Full list in [Keyboard shortcuts](/guide/keyboard-shortcuts).
+Press <kbd>Esc</kbd> to dismiss dialogs, clear search filters, abort running jobs, or reset the staging area. Refer to [Keyboard shortcuts](/guide/keyboard-shortcuts).

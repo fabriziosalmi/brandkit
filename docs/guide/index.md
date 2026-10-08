@@ -1,58 +1,56 @@
 ---
 title: What is BrandKit?
-description: BrandKit is a self-hosted Flask application that turns one source image into a complete set of correctly-sized brand assets.
+description: BrandKit is a self-hosted application that turns a single source image into a complete set of correctly-sized brand assets.
 ---
 
 # What is BrandKit?
 
-BrandKit is a small, self-hosted web application that solves one narrow, annoying problem: **you have a logo, and you need it in thirty different sizes by tomorrow.**
+BrandKit is a self-hosted web utility engineered for automated brand asset derivation.
 
-You upload one image. BrandKit resizes, pads, crops and converts it into every format you tick — Open Graph cards, favicons, PWA icons, Instagram posts, LinkedIn banners, ebook covers, A4 print sheets — and hands you back a ZIP.
+You upload a single source image. BrandKit resizes, pads, crops, and converts it into each selected format (Open Graph cards, favicons, PWA icons, social banners, document headers, and print sheets) and packages the outputs into a ZIP archive.
 
-It runs on your own machine or your own server. Your images are processed in-process by Pillow and never sent to a third-party API.
+Processing executes entirely in-process using Pillow, OpenCV, and ONNX Runtime. Images are never transmitted to third-party endpoints.
 
-## Who it is for
+## Target use cases
 
-- **Solo developers and small teams** shipping a product who need a favicon, an OG image and an app icon *right now*, without opening a design tool.
-- **Anyone doing client work** who has to deliver "the logo pack" and would rather not resize twenty files by hand.
-- **Self-hosters** who do not want to paste their client's unreleased branding into a free online converter.
+- **Product engineering teams** generating favicons, Open Graph cards, and app manifests during deployment without requiring heavy desktop design applications.
+- **Client brand delivery** producing standardized format suites from vector or high-resolution raster master logos.
+- **Privacy-sensitive deployments** operating in air-gapped or internal network environments where asset leakage to third-party SaaS converters is unacceptable.
 
-## What it actually does
+## Architecture pipeline
 
 <div class="tip custom-block" style="padding-top: 8px">
 
-The pipeline is deliberately simple, and it runs in this order for every generation.
+The image processing pipeline executes sequentially for each batch generation.
 
 </div>
 
-1. **Upload & validate** — extension is checked against an allowlist (`png`, `jpg`, `jpeg`, `gif`, `webp`), size against `MAX_CONTENT_LENGTH`, and the file is re-encoded through Pillow. EXIF metadata is stripped unconditionally at this step.
-2. **Analyse** *(optional)* — the app samples the image to find its prominent colour and to detect whether it contains a significant white region. That drives the "fill white with prominent colour" behaviour and the gradient backgrounds.
-3. **Preprocess once** — background removal, colour grading, sharpening, watermarking, vignette, auto-crop and so on are applied a single time to the source, not per format.
-4. **Render every format** — the preprocessed image is fitted into each selected canvas, then encoded into each selected output type.
-5. **Package** — everything goes into a ZIP served from `/download-zip/<filename>`, and the browser shows a preview grid.
+1. **Ingestion & Validation**: File extensions are checked against an explicit allowlist (`png`, `jpg`, `jpeg`, `gif`, `webp`), size is constrained to `MAX_CONTENT_LENGTH`, and pixel buffers are parsed through Pillow. EXIF metadata is systematically stripped.
+2. **Telemetry & Analysis**: The engine samples color distributions to extract dominant hues and evaluate transparent/white boundary coverage for background compositing.
+3. **Master Preprocessing**: Background removal, color adjustments, sharpening, watermarking, and auto-crop operations are computed once against the master buffer rather than per-output canvas.
+4. **Target Rendering**: The processed master is scaled and fitted into each target canvas specification, then encoded into the requested output encodings.
+5. **Archive Assembly**: Assets are packaged into a downloadable ZIP archive with metadata manifests, while the UI displays interactive previews and high-density result tables.
 
-## What it is not
+## Scope boundaries
 
-- **Not a design tool.** There is no canvas, no layers, no typography. It resizes and converts what you give it.
-- **Not multi-tenant.** There are no accounts, no per-user isolation and no authorisation layer. If you expose it publicly, put an authenticating reverse proxy in front — see [Deployment](/guide/deployment).
-- **Not a hosted service.** There is no brandkit.com. You run the container.
+- **Not a vector illustration or layout tool:** Operates as a headless derivation engine rather than a canvas editor.
+- **Single-tenant runtime:** Does not implement multi-tenant user authentication or isolated tenant storage natively. Terminate behind an authenticating reverse proxy for remote access (see [Deployment](/guide/deployment)).
+- **Self-hosted:** Containerized for private infrastructure.
 
-## The stack
+## Technical stack
 
-| Layer | What it uses |
+| Component | Implementation |
 | --- | --- |
-| Web framework | Flask 3.1 (`app.py`, a single module) |
-| Image processing | Pillow, NumPy, OpenCV (optional), scikit-image |
-| Background removal | rembg + onnxruntime (optional, `u2net` family) |
-| Frontend | Alpine.js + Tailwind, both **vendored and served same-origin** — no CDN calls |
-| Security middleware | Flask-WTF (CSRF), Flask-Limiter, Flask-Talisman (CSP + headers) |
-| Caching | Flask-Caching in memory, plus an on-disk cache keyed by content hash |
-| Packaging | Docker / Docker Compose, gunicorn via `entrypoint.sh` |
-
-The entire backend is one file — [`app.py`](https://github.com/fabriziosalmi/brandkit/blob/main/app.py), about 1,500 lines. The entire frontend is one Jinja template. That is intentional: you can read all of it in an afternoon.
+| HTTP service | Flask 3.1 (`app.py`) |
+| Image pipeline | Pillow, NumPy, OpenCV, scikit-image |
+| Neural segmentation | rembg, ONNX Runtime (`u2net` architecture) |
+| Frontend | Alpine.js, Tailwind CSS (vendored and served same-origin without external CDN dependencies) |
+| Security | Flask-WTF (CSRF), Flask-Limiter, Flask-Talisman (Content Security Policy) |
+| Cache layer | Memory caching plus content-hash disk persistence |
+| Container runtime | Docker, Docker Compose, Gunicorn |
 
 ## Next steps
 
-- [Getting started](/guide/getting-started) — install and run it locally
-- [Running with Docker](/guide/docker) — the recommended path
-- [The generation workflow](/guide/usage) — what each control in the UI does
+- [Getting started](/guide/getting-started): installation and setup
+- [Running with Docker](/guide/docker): container orchestration
+- [The generation workflow](/guide/usage): configuration parameters and processing controls

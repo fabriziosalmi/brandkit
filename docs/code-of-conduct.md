@@ -11,7 +11,7 @@ The full text is maintained in the repository at [`CODE_OF_CONDUCT.md`](https://
 
 ## In short
 
-Everyone participating in this project — issues, pull requests, discussions — is expected to make it a harassment-free experience for everyone, regardless of age, body size, disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
+Everyone participating in this project (issues, pull requests, discussions) is expected to make it a harassment-free experience for everyone, regardless of age, body size, disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
 
 **Expected:** empathy and kindness, respect for differing opinions and experiences, graceful acceptance of constructive feedback, accountability for mistakes, and focus on what is best for the community.
 
