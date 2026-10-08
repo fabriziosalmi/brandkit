@@ -12,7 +12,6 @@ Press <kbd>Shift</kbd>+<kbd>?</kbd> or <kbd>⌘</kbd>+<kbd>K</kbd> anywhere in t
 | <kbd>⌘</kbd>+<kbd>V</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd> | Global | Ingest master image from system clipboard |
 | <kbd>Space</kbd> | Drop zone focused | Open native file selector |
 | <kbd>⌘</kbd>+<kbd>Enter</kbd> / <kbd>Ctrl</kbd>+<kbd>Enter</kbd> | Global | Trigger generation pipeline |
-| <kbd>T</kbd> | Global (outside inputs) | Cycle color theme (System / Dark / Light) |
 | <kbd>Esc</kbd> | Global | Cancel processing, dismiss modal, or reset form |
 | <kbd>⌘</kbd>+<kbd>K</kbd> / <kbd>Shift</kbd>+<kbd>?</kbd> | Global | Toggle shortcuts modal |
 
@@ -34,10 +33,6 @@ Initiates batch generation when the following preconditions are met:
 2. At least one canvas format is selected
 3. At least one output encoding is checked
 4. An active generation cycle is not already running
-
-### Color theme cycle (<kbd>T</kbd>)
-
-Cycles theme preferences between System, Dark, and Light mode without opening a settings panel. Keystrokes are ignored when focused within text inputs or search fields.
 
 ### Escape handling (<kbd>Esc</kbd>)
 

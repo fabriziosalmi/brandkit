@@ -8,16 +8,21 @@
     <script>
         (function() {
             try {
-                var stored = localStorage.getItem('brandkit_theme');
-                var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                var isDark = stored === 'dark' || (!stored && systemDark);
-                if (isDark) {
-                    document.documentElement.classList.add('dark');
-                    document.querySelector('meta[name="color-scheme"]').content = 'dark';
-                } else {
-                    document.documentElement.classList.remove('dark');
-                    document.querySelector('meta[name="color-scheme"]').content = 'light';
+                function syncTheme(e) {
+                    var isDark = e ? e.matches : window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    if (isDark) {
+                        document.documentElement.classList.add('dark');
+                        var meta = document.querySelector('meta[name="color-scheme"]');
+                        if (meta) meta.content = 'dark';
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                        var meta = document.querySelector('meta[name="color-scheme"]');
+                        if (meta) meta.content = 'light';
+                    }
                 }
+                var mq = window.matchMedia('(prefers-color-scheme: dark)');
+                syncTheme(mq);
+                mq.addEventListener('change', syncTheme);
             } catch (e) {}
         })();
     </script>
@@ -101,6 +106,31 @@
             transform: scale(1.15);
         }
 
+        /* Checkbox & Color input theme decoupling */
+        input[type=checkbox] {
+            accent-color: #09090b;
+        }
+        .dark input[type=checkbox] {
+            accent-color: #fafafa;
+        }
+        input[type=color] {
+            -webkit-appearance: none;
+            appearance: none;
+            border: none;
+            padding: 0;
+            background: transparent;
+        }
+        input[type=color]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type=color]::-webkit-color-swatch {
+            border-radius: 4px;
+            border: 1px solid #d4d4d8;
+        }
+        .dark input[type=color]::-webkit-color-swatch {
+            border: 1px solid #3f3f46;
+        }
+
         /* Minimal hairline scrollbar */
         ::-webkit-scrollbar {
             width: 5px;
@@ -164,51 +194,15 @@
     <!-- Top Navigation Header -->
     <header class="border-b border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-black/95 sticky top-0 z-40 backdrop-blur-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-2.5">
                 <div class="w-6 h-6 bg-black dark:bg-white rounded flex items-center justify-center text-white dark:text-black font-mono font-bold text-xs tracking-tighter">
                     BK
                 </div>
-                <div class="flex items-baseline space-x-2">
-                    <span class="font-semibold text-sm tracking-tight text-zinc-950 dark:text-zinc-50">BrandKit</span>
-                    <span class="text-[11px] font-mono uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Engine v2.1</span>
-                </div>
-                <div class="hidden sm:flex items-center space-x-1.5 pl-3 border-l border-zinc-200 dark:border-zinc-800">
-                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    <span class="text-[11px] font-mono text-zinc-600 dark:text-zinc-400">READY</span>
-                </div>
+                <span class="font-semibold text-sm tracking-tight text-zinc-950 dark:text-zinc-50">BrandKit</span>
             </div>
 
             <!-- Action Controls -->
             <div class="flex items-center space-x-2">
-                <!-- Theme Switcher -->
-                <div class="flex items-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-0.5 text-xs">
-                    <button type="button"
-                            @click="setTheme('light')"
-                            :class="{'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-zinc-50 shadow-sm': theme === 'light', 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200': theme !== 'light'}"
-                            class="px-2 py-1 rounded transition-colors"
-                            title="Light theme">
-                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
-                        </svg>
-                    </button>
-                    <button type="button"
-                            @click="setTheme('dark')"
-                            :class="{'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-zinc-50 shadow-sm': theme === 'dark', 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200': theme !== 'dark'}"
-                            class="px-2 py-1 rounded transition-colors"
-                            title="Dark theme">
-                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
-                        </svg>
-                    </button>
-                    <button type="button"
-                            @click="setTheme('system')"
-                            :class="{'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-zinc-50 shadow-sm': theme === 'system', 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200': theme !== 'system'}"
-                            class="px-2 py-1 rounded transition-colors font-mono text-[10px] uppercase tracking-wider"
-                            title="Follow system preference">
-                        Auto
-                    </button>
-                </div>
-
                 <!-- Shortcuts Trigger Button -->
                 <button type="button"
                         @click="showShortcuts = true"
@@ -500,10 +494,11 @@
                             <span class="font-semibold text-xs font-mono text-zinc-950 dark:text-zinc-100">Other Formats</span>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                                 <template x-for="formatKey in ungroupedFormats" :key="formatKey">
-                                    <label class="flex items-center justify-between p-2 rounded border border-zinc-100 dark:border-zinc-800 cursor-pointer text-xs">
+                                    <label class="flex items-center justify-between p-2 rounded border border-zinc-100 dark:border-zinc-800/80 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer text-xs transition-colors"
+                                           :class="{'border-zinc-950/20 dark:border-zinc-100/20 bg-zinc-50/80 dark:bg-zinc-800/30': selected_formats.includes(formatKey)}">
                                         <div class="flex items-center space-x-2 truncate">
-                                            <input type="checkbox" :value="formatKey" x-model="selected_formats" class="w-3.5 h-3.5 rounded text-black dark:text-white">
-                                            <span class="font-medium truncate capitalize" x-text="formatKey.replace(/_/g, ' ')"></span>
+                                            <input type="checkbox" :value="formatKey" x-model="selected_formats" class="w-3.5 h-3.5 rounded text-black dark:text-white bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 focus:ring-0">
+                                            <span class="font-medium text-zinc-800 dark:text-zinc-200 truncate capitalize" x-text="formatKey.replace(/_/g, ' ')"></span>
                                         </div>
                                         <span class="font-mono text-[10px] text-zinc-600 dark:text-zinc-400" x-text="`${config.formats[formatKey].width}×${config.formats[formatKey].height}`"></span>
                                     </label>
@@ -577,7 +572,7 @@
                                 </div>
                             </div>
                             <label class="flex items-center space-x-2 cursor-pointer pt-1">
-                                <input type="checkbox" x-model="options.edge_smooth" class="w-3.5 h-3.5 rounded text-black dark:text-white">
+                                <input type="checkbox" x-model="options.edge_smooth" class="w-3.5 h-3.5 rounded text-black dark:text-white bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 focus:ring-0">
                                 <span class="text-xs text-zinc-800 dark:text-zinc-200">Alpha Edge Smoothing Filter</span>
                             </label>
                         </div>
@@ -590,19 +585,19 @@
                         <!-- Fast Filters Grid -->
                         <div class="grid grid-cols-2 gap-2 text-xs font-mono">
                             <label class="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" x-model="options.grayscale" class="w-3.5 h-3.5 rounded text-black dark:text-white">
+                                <input type="checkbox" x-model="options.grayscale" class="w-3.5 h-3.5 rounded text-black dark:text-white bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 focus:ring-0">
                                 <span class="text-zinc-700 dark:text-zinc-300">Grayscale</span>
                             </label>
                             <label class="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" x-model="options.bw" class="w-3.5 h-3.5 rounded text-black dark:text-white">
+                                <input type="checkbox" x-model="options.bw" class="w-3.5 h-3.5 rounded text-black dark:text-white bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 focus:ring-0">
                                 <span class="text-zinc-700 dark:text-zinc-300">High B&W</span>
                             </label>
                             <label class="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" x-model="options.invert" class="w-3.5 h-3.5 rounded text-black dark:text-white">
+                                <input type="checkbox" x-model="options.invert" class="w-3.5 h-3.5 rounded text-black dark:text-white bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 focus:ring-0">
                                 <span class="text-zinc-700 dark:text-zinc-300">Invert</span>
                             </label>
                             <label class="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" x-model="options.enhance_contrast" class="w-3.5 h-3.5 rounded text-black dark:text-white">
+                                <input type="checkbox" x-model="options.enhance_contrast" class="w-3.5 h-3.5 rounded text-black dark:text-white bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 focus:ring-0">
                                 <span class="text-zinc-700 dark:text-zinc-300">Contrast++</span>
                             </label>
                         </div>
@@ -653,19 +648,19 @@
 
                         <div class="grid grid-cols-2 gap-2">
                             <label class="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" x-model="options.auto_crop" class="w-3.5 h-3.5 rounded text-black dark:text-white">
+                                <input type="checkbox" x-model="options.auto_crop" class="w-3.5 h-3.5 rounded text-black dark:text-white bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 focus:ring-0">
                                 <span class="text-zinc-700 dark:text-zinc-300">Auto Crop</span>
                             </label>
                             <label class="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" x-model="options.noise_reduction" class="w-3.5 h-3.5 rounded text-black dark:text-white">
+                                <input type="checkbox" x-model="options.noise_reduction" class="w-3.5 h-3.5 rounded text-black dark:text-white bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 focus:ring-0">
                                 <span class="text-zinc-700 dark:text-zinc-300">Denoise</span>
                             </label>
                             <label class="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" x-model="options.shadow_effect" class="w-3.5 h-3.5 rounded text-black dark:text-white">
+                                <input type="checkbox" x-model="options.shadow_effect" class="w-3.5 h-3.5 rounded text-black dark:text-white bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 focus:ring-0">
                                 <span class="text-zinc-700 dark:text-zinc-300">Drop Shadow</span>
                             </label>
                             <label class="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" x-model="options.enhance_quality" class="w-3.5 h-3.5 rounded text-black dark:text-white">
+                                <input type="checkbox" x-model="options.enhance_quality" class="w-3.5 h-3.5 rounded text-black dark:text-white bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 focus:ring-0">
                                 <span class="text-zinc-700 dark:text-zinc-300">Sharpen Edge</span>
                             </label>
                         </div>
@@ -685,10 +680,10 @@
                         <div class="pt-2 border-t border-zinc-100 dark:border-zinc-800 space-y-2">
                             <label class="flex items-center justify-between cursor-pointer">
                                 <span class="text-xs text-zinc-700 dark:text-zinc-300">Watermark Overlay</span>
-                                <input type="checkbox" x-model="options.add_watermark" class="w-3.5 h-3.5 rounded text-black dark:text-white">
+                                <input type="checkbox" x-model="options.add_watermark" class="w-3.5 h-3.5 rounded text-black dark:text-white bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 focus:ring-0">
                             </label>
                             <div x-show="options.add_watermark" class="space-y-1.5 pl-2">
-                                <input type="text" x-model="options.watermark_text" placeholder="Watermark text" class="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-xs">
+                                <input type="text" x-model="options.watermark_text" placeholder="Watermark text" class="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-950 dark:focus:border-zinc-100 font-mono">
                                 <div class="flex justify-between text-[10px] text-zinc-600 dark:text-zinc-400">
                                     <span>Opacity</span>
                                     <span x-text="`${Math.round(options.watermark_opacity * 100)}%`"></span>
@@ -706,7 +701,7 @@
                             <input type="range" x-model="quality" min="70" max="100" step="1">
 
                             <label class="flex items-center space-x-2 cursor-pointer pt-1">
-                                <input type="checkbox" x-model="strip_metadata" class="w-3.5 h-3.5 rounded text-black dark:text-white">
+                                <input type="checkbox" x-model="strip_metadata" class="w-3.5 h-3.5 rounded text-black dark:text-white bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 focus:ring-0">
                                 <span class="text-[11px] text-zinc-600 dark:text-zinc-400">Strip EXIF Metadata on output</span>
                             </label>
                         </div>
@@ -984,10 +979,6 @@
                         <kbd class="px-2 py-0.5 border border-zinc-200 dark:border-zinc-800 rounded bg-zinc-100 dark:bg-zinc-900">⌘+V</kbd>
                     </div>
                     <div class="flex items-center justify-between pt-2">
-                        <span class="text-zinc-600 dark:text-zinc-400">Toggle theme</span>
-                        <kbd class="px-2 py-0.5 border border-zinc-200 dark:border-zinc-800 rounded bg-zinc-100 dark:bg-zinc-900">T</kbd>
-                    </div>
-                    <div class="flex items-center justify-between pt-2">
                         <span class="text-zinc-600 dark:text-zinc-400">Reset form / Cancel / Close</span>
                         <kbd class="px-2 py-0.5 border border-zinc-200 dark:border-zinc-800 rounded bg-zinc-100 dark:bg-zinc-900">Escape</kbd>
                     </div>
@@ -1047,7 +1038,6 @@
                 ungroupedFormats: ungroupedFormats,
                 formatPresets: formatPresets,
 
-                theme: localStorage.getItem('brandkit_theme') || 'system',
                 showShortcuts: false,
                 viewMode: 'grid',
                 resultsTab: 'formats',
@@ -1116,8 +1106,6 @@
                 recentUploads: [],
 
                 init() {
-                    this.applyTheme(this.theme);
-
                     if (this.selected_formats.includes('favicon') && !this.output_formats.includes('ico') && this.config.output_formats.includes('ico')) {
                         this.output_formats.push('ico');
                     }
@@ -1136,41 +1124,6 @@
                     });
 
                     this.loadRecentUploads();
-
-                    // Keydown for theme cycle 'T'
-                    window.addEventListener('keydown', (e) => {
-                        if (e.key === 't' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-                            this.cycleTheme();
-                        }
-                    });
-                },
-
-                setTheme(mode) {
-                    this.theme = mode;
-                    if (mode === 'system') {
-                        localStorage.removeItem('brandkit_theme');
-                    } else {
-                        localStorage.setItem('brandkit_theme', mode);
-                    }
-                    this.applyTheme(mode);
-                },
-
-                cycleTheme() {
-                    if (this.theme === 'light') this.setTheme('dark');
-                    else if (this.theme === 'dark') this.setTheme('system');
-                    else this.setTheme('light');
-                },
-
-                applyTheme(mode) {
-                    var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    var isDark = mode === 'dark' || (mode === 'system' && systemDark);
-                    if (isDark) {
-                        document.documentElement.classList.add('dark');
-                        document.querySelector('meta[name="color-scheme"]').content = 'dark';
-                    } else {
-                        document.documentElement.classList.remove('dark');
-                        document.querySelector('meta[name="color-scheme"]').content = 'light';
-                    }
                 },
 
                 get canGenerate() {

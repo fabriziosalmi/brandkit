@@ -11,7 +11,6 @@ Press `⌘K` or `Shift+?` anywhere in the application to view the keyboard short
 | `Space` | Open file selector dialog |
 | `⌘+Enter` or `Ctrl+Enter` | Generate brand kit assets (submit form) |
 | `⌘+V` or `Ctrl+V` | Paste image directly from system clipboard |
-| `T` | Cycle interface theme (Light, Dark, System) |
 | `Escape` | Reset form, cancel active operation, or dismiss dialogs |
 | `Shift+?` / `⌘K` | Show keyboard shortcuts dialog |
 
@@ -33,7 +32,6 @@ Press `⌘K` or `Shift+?` anywhere in the application to view the keyboard short
 
 ### Interface
 
-- **T**: Cycles between Light, Dark, and System color schemes.
 - **Shift+?** or **⌘K**: Toggles the keyboard shortcut reference modal.
 
 ## Accessibility Features

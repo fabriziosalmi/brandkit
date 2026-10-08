@@ -29,6 +29,11 @@ Performance optimizations, non-root container hardening, boundary input validati
 - **Universal Hash-Pinned Lockfile**: Introduced `requirements.lock` with SHA-256 hashes generated via `uv` for reproducible builds.
 - **Test Dependency Pinning**: Pinned explicit versions for `pytest==9.1.1` and `pytest-cov==7.1.0`.
 
+**UI & Theme Decoupling**
+- **Automatic OS/Browser Theme Sync**: Client color scheme automatically follows system preference with instant dynamic response to `prefers-color-scheme` media query changes.
+- **Top Bar Streamlining**: Removed redundant status badges and manual theme switchers from the navigation header.
+- **Control Harmonization**: Fully styled native checkboxes, color swatches, and inputs across both dark and light modes.
+
 ## v1.1.4 (16 September 2026) {#v1-1-4}
 
 Architecture decoupling, automated test coverage, structured observability, and atomic data persistence.

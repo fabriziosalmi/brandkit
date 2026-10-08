@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added comprehensive root `.dockerignore` excluding tests, virtual environments, Git metadata, documentation, and development artifacts from image builds
 - Enforced strict input range boundary clamping (`parse_clamped_float`, `parse_clamped_int`) on all numeric filter inputs (`blur_radius`, `crop_padding`, `quality`, `saturation`, `brightness`, etc.) with NaN/Inf protection
 
+### UI & Theme Decoupling
+- Fully automated client color scheme synchronization responding dynamically to OS/browser `prefers-color-scheme` media query changes
+- Streamlined top navigation header by removing redundant status indicators and manual theme switcher
+- Decoupled and harmonized form controls, native checkboxes, and color swatches across dark and light palettes
+
 ### Supply Chain
 - Adopted bit-for-bit reproducible, universal hash-pinned lockfile `requirements.lock` generated via `uv`
 - Pinned exact versions for test dependencies `pytest==9.1.1` and `pytest-cov==7.1.0` in `requirements.txt`
