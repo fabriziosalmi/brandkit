@@ -18,6 +18,8 @@ updates:
   # Pillow in particular sits directly in front of attacker-controlled bytes:
   # https://fabriziosalmi.github.io/brandkit/security#dependency-security
   - package-ecosystem: "pip"
+    cooldown:
+      default-days: 7
     directory: "/"
     schedule:
       interval: "weekly"
@@ -34,6 +36,8 @@ updates:
   # always dev-server issues. Still worth patching: contributors run
   # `npm run docs:dev` locally.
   - package-ecosystem: "npm"
+    cooldown:
+      default-days: 7
     directory: "/"
     schedule:
       interval: "weekly"
@@ -55,6 +59,8 @@ updates:
           - "@vitejs/*"
 
   - package-ecosystem: "github-actions"
+    cooldown:
+      default-days: 7
     directory: "/"
     schedule:
       interval: "monthly"
@@ -67,6 +73,8 @@ updates:
       - "security"
 
   - package-ecosystem: "docker"
+    cooldown:
+      default-days: 7
     directory: "/"
     schedule:
       interval: "monthly"
